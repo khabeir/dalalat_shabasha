@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_decorations.dart';
 import 'admin_banners_screen.dart';
+import 'admin_users_screen.dart';
 import 'listing_details_screen.dart';
 
 // مجموعة بلاغات على إعلان واحد.
@@ -2275,6 +2276,18 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
             ),
             centerTitle: false,
             actions: [
+              IconButton(
+                tooltip: 'الأعضاء',
+                icon: const Icon(Icons.people_outline),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const AdminUsersScreen(),
+                    ),
+                  );
+                },
+              ),
               IconButton(
                 tooltip: 'البنر الإعلاني',
                 icon: const Icon(Icons.campaign_outlined),
