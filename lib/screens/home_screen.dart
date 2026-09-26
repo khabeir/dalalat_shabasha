@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen>
   static const _searchPoolSize = 500;
 
   static const _cardWidth = 172.0;
-  static const _cardHeight = 272.0;
+  static const _cardHeight = 245.0;
 
   static const _listingColumns =
       'id, title, description, price, currency, price_type, '
