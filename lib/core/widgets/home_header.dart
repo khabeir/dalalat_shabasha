@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
+import '../services/notification_service.dart';
+import '../screens/notifications_screen.dart';
 
 class HomeHeader extends StatelessWidget {
   // =========================================================
@@ -36,8 +38,7 @@ class HomeHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final height =
-        topPadding + headerContentHeight;
+    final height = topPadding + headerContentHeight;
 
     return SizedBox(
       height: height,
@@ -67,7 +68,7 @@ class HomeHeader extends StatelessWidget {
             top: topPadding + 8,
             left: 16,
             right: 16,
-            child: _buildTopRow(),
+            child: _buildTopRow(context),
           ),
 
           // =====================================================
@@ -240,10 +241,9 @@ class HomeHeader extends StatelessWidget {
   // =========================================================
   // الصف العلوي
   // =========================================================
-  Widget _buildTopRow() {
+  Widget _buildTopRow(BuildContext context) {
     return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         // =====================================================
         // زر القائمة
@@ -273,6 +273,23 @@ class HomeHeader extends StatelessWidget {
         const SizedBox(width: 8),
 
         // =====================================================
+        // زر الإشعارات
+        // =====================================================
+        if (isSignedIn) ...[
+          _NotificationHeaderButton(
+            onTap: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const NotificationsScreen(),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 7),
+        ],
+
+        // =====================================================
         // حساب المستخدم
         // =====================================================
         _HeaderCircleButton(
@@ -293,8 +310,7 @@ class HomeHeader extends StatelessWidget {
   // =========================================================
   Widget _buildAppTitle() {
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
         // -----------------------------------------------------
@@ -397,16 +413,14 @@ class HomeHeader extends StatelessWidget {
             child: Container(
               width: 15,
               height: 15,
-              decoration:
-                  const BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.gold,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
                 Icons.local_offer_rounded,
                 size: 9,
-                color:
-                    AppColors.brandDark,
+                color: AppColors.brandDark,
               ),
             ),
           ),
@@ -433,8 +447,7 @@ class HomeHeader extends StatelessWidget {
       height: 56,
       decoration: BoxDecoration(
         color: surfaceColor,
-        borderRadius:
-            BorderRadius.circular(30),
+        borderRadius: BorderRadius.circular(30),
         border: Border.all(
           color: isDark
               ? Colors.white.withValues(
@@ -461,8 +474,7 @@ class HomeHeader extends StatelessWidget {
             ),
         ],
       ),
-      child: ValueListenableBuilder<
-          TextEditingValue>(
+      child: ValueListenableBuilder<TextEditingValue>(
         valueListenable: searchController,
         builder: (
           context,
@@ -471,8 +483,7 @@ class HomeHeader extends StatelessWidget {
         ) {
           return TextField(
             controller: searchController,
-            textInputAction:
-                TextInputAction.search,
+            textInputAction: TextInputAction.search,
             onChanged: onSearchChanged,
             style: TextStyle(
               fontSize: 15,
@@ -480,8 +491,7 @@ class HomeHeader extends StatelessWidget {
               color: textColor,
             ),
             decoration: InputDecoration(
-              hintText:
-                  'ابحث عن إعلان أو منطقة ...',
+              hintText: 'ابحث عن إعلان أو منطقة ...',
               hintStyle: TextStyle(
                 fontSize: 14.5,
                 fontWeight: FontWeight.w500,
@@ -499,8 +509,7 @@ class HomeHeader extends StatelessWidget {
               // ------------------------------------------------
               prefixIcon: Padding(
                 padding:
-                    const EdgeInsetsDirectional
-                        .only(
+                    const EdgeInsetsDirectional.only(
                   start: 6,
                   end: 2,
                 ),
@@ -514,39 +523,27 @@ class HomeHeader extends StatelessWidget {
               // ------------------------------------------------
               // زر مسح البحث
               // ------------------------------------------------
-              suffixIcon:
-                  value.text.isNotEmpty
-                      ? IconButton(
-                          onPressed:
-                              onClearSearch,
-                          tooltip:
-                              'مسح البحث',
-                          icon: Icon(
-                            Icons.close_rounded,
-                            size: 21,
-                            color: isDark
-                                ? Colors.white70
-                                : AppColors
-                                    .ink
-                                    .withValues(
-                                    alpha: 0.65,
-                                  ),
-                          ),
-                        )
-                      : null,
+              suffixIcon: value.text.isNotEmpty
+                  ? IconButton(
+                      onPressed: onClearSearch,
+                      tooltip: 'مسح البحث',
+                      icon: Icon(
+                        Icons.close_rounded,
+                        size: 21,
+                        color: isDark
+                            ? Colors.white70
+                            : AppColors.ink.withValues(
+                                alpha: 0.65,
+                              ),
+                      ),
+                    )
+                  : null,
 
               filled: false,
               isDense: true,
-
-              border:
-                  InputBorder.none,
-
-              enabledBorder:
-                  InputBorder.none,
-
-              focusedBorder:
-                  InputBorder.none,
-
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
               contentPadding:
                   const EdgeInsets.symmetric(
                 vertical: 18,
@@ -561,10 +558,146 @@ class HomeHeader extends StatelessWidget {
 }
 
 // =============================================================
+// زر الإشعارات في الهيدر
+// =============================================================
+class _NotificationHeaderButton
+    extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _NotificationHeaderButton({
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<int>(
+      future: NotificationService.instance.getUnreadCount(),
+      builder: (context, snapshot) {
+        final unreadCount = snapshot.data ?? 0;
+
+        return Tooltip(
+          message: 'الإشعارات',
+          child: Material(
+            color: Colors.transparent,
+            shape: const CircleBorder(),
+            child: InkWell(
+              onTap: onTap,
+              customBorder: const CircleBorder(),
+              child: Ink(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(
+                    alpha: 0.94,
+                  ),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.brand.withValues(
+                      alpha: 0.08,
+                    ),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.brand.withValues(
+                        alpha: 0.14,
+                      ),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Center(
+                      child: Icon(
+                        Icons.notifications_rounded,
+                        size: 24,
+                        color: AppColors.brandDark,
+                      ),
+                    ),
+
+                    // =================================================
+                    // عداد الإشعارات غير المقروءة
+                    // =================================================
+                    if (unreadCount > 0)
+                      Positioned(
+                        top: -3,
+                        right: -3,
+                        child: _UnreadBadge(
+                          count: unreadCount,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// =============================================================
+// عداد الإشعارات
+// =============================================================
+class _UnreadBadge extends StatelessWidget {
+  final int count;
+
+  const _UnreadBadge({
+    required this.count,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = count > 99 ? '99+' : '$count';
+
+    return Container(
+      constraints: const BoxConstraints(
+        minWidth: 19,
+        minHeight: 19,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 5,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: Colors.red,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.red.withValues(
+              alpha: 0.25,
+            ),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9.5,
+          fontWeight: FontWeight.w900,
+          height: 1.1,
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================
 // زر دائري للهيدر
 // =============================================================
-class _HeaderCircleButton
-    extends StatelessWidget {
+class _HeaderCircleButton extends StatelessWidget {
   final String tooltip;
   final IconData icon;
   final VoidCallback onTap;
@@ -584,8 +717,7 @@ class _HeaderCircleButton
         shape: const CircleBorder(),
         child: InkWell(
           onTap: onTap,
-          customBorder:
-              const CircleBorder(),
+          customBorder: const CircleBorder(),
           child: Ink(
             width: 46,
             height: 46,
@@ -595,17 +727,18 @@ class _HeaderCircleButton
               ),
               shape: BoxShape.circle,
               border: Border.all(
-                color: AppColors.brand
-                    .withValues(alpha: 0.08),
+                color: AppColors.brand.withValues(
+                  alpha: 0.08,
+                ),
                 width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.brand
-                      .withValues(alpha: 0.14),
+                  color: AppColors.brand.withValues(
+                    alpha: 0.14,
+                  ),
                   blurRadius: 12,
-                  offset:
-                      const Offset(0, 4),
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
@@ -624,8 +757,7 @@ class _HeaderCircleButton
 // =============================================================
 // دائرة ناعمة للزخرفة
 // =============================================================
-class _SoftCircle
-    extends StatelessWidget {
+class _SoftCircle extends StatelessWidget {
   final double size;
   final Color color;
   final double opacity;
