@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'listing_details_screen.dart';
+import 'notification_settings_screen.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_decorations.dart';
 import '../services/notification_service.dart';
@@ -51,7 +53,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _notifications = notifications;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       setState(() {
@@ -63,7 +65,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   // =========================================================
-  // تحديث
+  // تحديث الإشعارات
   // =========================================================
 
   Future<void> _refreshNotifications() async {
@@ -83,7 +85,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         _notifications = notifications;
         _isRefreshing = false;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       setState(() {
@@ -92,6 +94,23 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       _showError('تعذر تحديث الإشعارات');
     }
+  }
+
+  // =========================================================
+  // فتح إعدادات الإشعارات
+  // =========================================================
+
+  Future<void> _openNotificationSettings() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const NotificationSettingsScreen(),
+      ),
+    );
+
+    if (!mounted) return;
+
+    await _loadNotifications();
   }
 
   // =========================================================
@@ -121,7 +140,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   // =========================================================
-  // تعليم الكل كمقروء
+  // تعليم جميع الإشعارات كمقروءة
   // =========================================================
 
   Future<void> _markAllAsRead() async {
@@ -179,22 +198,34 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('حذف جميع الإشعارات'),
-          content: const Text(
-            'هل تريد حذف جميع الإشعارات؟',
+      builder: (dialogContext) {
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            title: const Text(
+              'حذف جميع الإشعارات',
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            content: const Text(
+              'هل تريد حذف جميع الإشعارات؟',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext, false);
+                },
+                child: const Text('إلغاء'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(dialogContext, true);
+                },
+                child: const Text('حذف'),
+              ),
+            ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('إلغاء'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('حذف'),
-            ),
-          ],
         );
       },
     );
@@ -221,19 +252,34 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _openNotification(
     Map<String, dynamic> notification,
   ) async {
+    // أولاً نعلّم الإشعار كمقروء.
     await _markAsRead(notification);
+
+    if (!mounted) return;
 
     final listingId =
         (notification['listing_id'] as num?)?.toInt();
 
-    if (listingId == null || !mounted) {
+    // إذا لم يكن الإشعار مرتبطًا بإعلان،
+    // لا نحاول فتح صفحة تفاصيل.
+    if (listingId == null) {
       return;
     }
 
-    // سيتم ربط فتح الإعلان هنا في الخطوة القادمة.
-    //
-    // لا نضع ListingDetailsScreen الآن لأننا نحتاج أولاً
-    // مطابقة طريقة فتح الإعلان الموجودة في مشروعك.
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ListingDetailsScreen(
+          listingId: listingId,
+        ),
+      ),
+    );
+
+    // بعد الرجوع من تفاصيل الإعلان،
+    // نعيد تحميل الإشعارات لتحديث الحالة والعداد.
+    if (!mounted) return;
+
+    await _loadNotifications();
   }
 
   // =========================================================
@@ -257,6 +303,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  // =========================================================
+  // لون أيقونة الإشعار
+  // =========================================================
+
   Color _notificationIconColor(String? type) {
     switch (type) {
       case 'new_listing':
@@ -275,7 +325,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   // =========================================================
-  // التاريخ
+  // تنسيق التاريخ
   // =========================================================
 
   String _formatDate(dynamic value) {
@@ -284,10 +334,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     try {
-      final date = DateTime.parse(value.toString()).toLocal();
+      final date = DateTime.parse(
+        value.toString(),
+      ).toLocal();
 
       final now = DateTime.now();
       final difference = now.difference(date);
+
+      if (difference.isNegative) {
+        return 'الآن';
+      }
 
       if (difference.inMinutes < 1) {
         return 'الآن';
@@ -316,7 +372,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   // =========================================================
-  // رسالة خطأ
+  // رسالة الخطأ
   // =========================================================
 
   void _showError(String message) {
@@ -331,7 +387,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   // =========================================================
-  // البناء
+  // البناء الرئيسي
   // =========================================================
 
   @override
@@ -357,6 +413,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ),
           actions: [
+            // إعدادات الإشعارات
+            IconButton(
+              tooltip: 'إعدادات الإشعارات',
+              onPressed: _openNotificationSettings,
+              icon: const Icon(
+                Icons.settings_rounded,
+              ),
+            ),
+
+            // تحديد الكل كمقروء
             if (unreadCount > 0)
               IconButton(
                 tooltip: 'تحديد الكل كمقروء',
@@ -365,8 +431,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   Icons.done_all_rounded,
                 ),
               ),
+
+            // قائمة حذف الكل
             if (_notifications.isNotEmpty)
               PopupMenuButton<String>(
+                tooltip: 'المزيد',
                 onSelected: (value) {
                   if (value == 'delete_all') {
                     _deleteAllNotifications();
@@ -419,7 +488,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
             SizedBox(
-              height: MediaQuery.of(context).size.height * 0.28,
+              height: MediaQuery.of(context).size.height * 0.20,
             ),
             _buildEmptyState(),
           ],
@@ -438,8 +507,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           30,
         ),
         itemCount: _notifications.length,
-        separatorBuilder: (_, __) =>
-            const SizedBox(height: 10),
+        separatorBuilder: (_, __) {
+          return const SizedBox(height: 10);
+        },
         itemBuilder: (context, index) {
           return _buildNotificationCard(
             _notifications[index],
@@ -469,7 +539,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     final date =
         _formatDate(notification['created_at']);
 
-    final iconColor = _notificationIconColor(type);
+    final iconColor =
+        _notificationIconColor(type);
+
+    final listingId =
+        (notification['listing_id'] as num?)?.toInt();
+
+    final hasListing = listingId != null;
 
     return Dismissible(
       key: ValueKey(
@@ -496,9 +572,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       },
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => _openNotification(notification),
+        onTap: hasListing
+            ? () => _openNotification(notification)
+            : () => _markAsRead(notification),
         child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
+          duration: const Duration(
+            milliseconds: 200,
+          ),
           padding: const EdgeInsets.all(15),
           decoration: AppDecorations.card(
             color: isRead
@@ -506,7 +586,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 : AppColors.brandSoft,
           ),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                CrossAxisAlignment.start,
             children: [
               _buildNotificationIcon(
                 iconColor,
@@ -578,6 +659,27 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                       ),
                     ],
+                    if (hasListing) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.open_in_new_rounded,
+                            size: 14,
+                            color: iconColor,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'عرض الإعلان',
+                            style: TextStyle(
+                              color: iconColor,
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -617,7 +719,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   // =========================================================
-  // لا توجد إشعارات
+  // حالة عدم وجود إشعارات
   // =========================================================
 
   Widget _buildEmptyState() {
@@ -630,7 +732,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           Container(
             width: 88,
             height: 88,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.brandSoft,
               shape: BoxShape.circle,
             ),
@@ -662,10 +764,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             ),
           ),
           const SizedBox(height: 20),
+
+          // زر إعدادات الإشعارات
           OutlinedButton.icon(
-            onPressed: () {
-              // سيتم ربطها بصفحة إعدادات الإشعارات.
-            },
+            onPressed: _openNotificationSettings,
             icon: const Icon(
               Icons.tune_rounded,
             ),
@@ -679,7 +781,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   // =========================================================
-  // المستخدم غير مسجل
+  // المستخدم غير مسجل الدخول
   // =========================================================
 
   Widget _buildLoginMessage() {
