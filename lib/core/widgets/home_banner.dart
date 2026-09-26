@@ -398,7 +398,7 @@ class BannerCardContent extends StatelessWidget {
                           const SizedBox(height: 6),
 
                           // -------------------------------------
-                          // الوصف.
+                          // النص أسفل العنوان.
                           // -------------------------------------
                           Text(
                             subtitle,
@@ -415,7 +415,7 @@ class BannerCardContent extends StatelessWidget {
                                       ? 12
                                       : 13.5,
                               fontWeight:
-                                  FontWeight.w600,
+                                  FontWeight.w700,
                               height: 1.35,
                             ),
                           ),
@@ -530,9 +530,9 @@ class _BannerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconSize = compact ? 15.0 : 18.0;
+    final iconSize = compact ? 15.5 : 18.0;
 
-    final fontSize = compact ? 10.0 : 12.5;
+    final fontSize = compact ? 10.5 : 13.0;
 
     final horizontalPadding =
         compact ? 8.0 : 12.0;
@@ -544,9 +544,10 @@ class _BannerButton extends StatelessWidget {
 
     return Material(
       color: outlined
-          ? Colors.white.withValues(alpha: 0.12)
+          ? Colors.white.withValues(alpha: 0.14)
           : Colors.white,
-      borderRadius: BorderRadius.circular(radius),
+      borderRadius:
+          BorderRadius.circular(radius),
       child: InkWell(
         onTap: onTap,
         borderRadius:
@@ -565,7 +566,8 @@ class _BannerButton extends StatelessWidget {
                       BorderRadius.circular(radius),
                   border: Border.all(
                     color: Colors.white
-                        .withValues(alpha: 0.55),
+                        .withValues(alpha: 0.65),
+                    width: 1.1,
                   ),
                 )
               : null,
@@ -596,7 +598,8 @@ class _BannerButton extends StatelessWidget {
                         ? Colors.white
                         : darkColor,
                     fontSize: fontSize,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
                   ),
                 ),
               ),
