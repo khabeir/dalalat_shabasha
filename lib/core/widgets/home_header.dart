@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../theme/app_colors.dart';
-import 'home_decorative_painters.dart';
 
 class HomeHeader extends StatelessWidget {
-  // تم تقليل ارتفاع الترويسة قليلًا لتقليل المساحة الرأسية.
+  // =========================================================
+  // ارتفاع محتوى الترويسة.
+  // =========================================================
   static const headerContentHeight = 160.0;
-
-  static const headerAsset =
-      'assets/images/home_header.jpg';
 
   final double topPadding;
   final bool isDark;
@@ -46,80 +44,50 @@ class HomeHeader extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          // =========================
-          // خلفية الترويسة
-          // =========================
+          // =====================================================
+          // الخلفية الجديدة
+          // =====================================================
           Positioned.fill(
-            child: Image.asset(
-              headerAsset,
-              fit: BoxFit.cover,
-              alignment: Alignment.bottomCenter,
-              errorBuilder: (_, __, ___) {
-                return const RepaintBoundary(
-                  child: CustomPaint(
-                    painter:
-                        HomeShabshaScenePainter(),
-                  ),
-                );
-              },
+            child: _buildBackground(),
+          ),
+
+          // =====================================================
+          // زخارف الخلفية
+          // =====================================================
+          Positioned.fill(
+            child: IgnorePointer(
+              child: _buildDecorations(),
             ),
           ),
 
-          // =========================
-          // تدرج علوي خفيف
-          // =========================
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: topPadding + 64,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(
-                      alpha: 0.22,
-                    ),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          // =========================
+          // =====================================================
           // الصف العلوي
-          // =========================
+          // =====================================================
           Positioned(
-            top: topPadding + 10,
+            top: topPadding + 8,
             left: 16,
             right: 16,
             child: _buildTopRow(),
           ),
 
-          // =========================
+          // =====================================================
           // مربع البحث
-          // تم رفعه للأعلى ليكون أقرب
-          // إلى عنوان التطبيق.
-          // =========================
+          // =====================================================
           Positioned(
             left: 16,
             right: 16,
-            bottom: 32,
+            bottom: 30,
             child: _buildSearchField(context),
           ),
 
-          // =========================
-          // الحافة المنحنية
-          // أسفل الترويسة
-          // =========================
+          // =====================================================
+          // الحافة المنحنية أسفل الترويسة
+          // =====================================================
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            height: 30,
+            height: 28,
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: pageBackground,
@@ -136,137 +104,252 @@ class HomeHeader extends StatelessWidget {
   }
 
   // =========================================================
+  // خلفية الترويسة الجديدة
+  // =========================================================
+  Widget _buildBackground() {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: isDark
+              ? const [
+                  Color(0xFF25154A),
+                  Color(0xFF38206B),
+                  Color(0xFF4C2A83),
+                ]
+              : const [
+                  Color(0xFFF3ECFF),
+                  Color(0xFFE8DEFF),
+                  Color(0xFFFDF9FF),
+                ],
+          stops: const [
+            0.0,
+            0.52,
+            1.0,
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =========================================================
+  // زخارف الخلفية
+  // =========================================================
+  Widget _buildDecorations() {
+    return Stack(
+      children: [
+        // -----------------------------------------------------
+        // دائرة بنفسجية كبيرة أعلى اليمين
+        // -----------------------------------------------------
+        Positioned(
+          top: -70,
+          right: -45,
+          child: _SoftCircle(
+            size: 190,
+            color: AppColors.brand,
+            opacity: isDark ? 0.18 : 0.10,
+          ),
+        ),
+
+        // -----------------------------------------------------
+        // دائرة ذهبية صغيرة
+        // -----------------------------------------------------
+        Positioned(
+          top: 28,
+          right: 82,
+          child: _SoftCircle(
+            size: 46,
+            color: AppColors.gold,
+            opacity: isDark ? 0.22 : 0.28,
+          ),
+        ),
+
+        // -----------------------------------------------------
+        // دائرة بنفسجية يسار
+        // -----------------------------------------------------
+        Positioned(
+          top: 74,
+          left: -55,
+          child: _SoftCircle(
+            size: 150,
+            color: AppColors.brand,
+            opacity: isDark ? 0.15 : 0.08,
+          ),
+        ),
+
+        // -----------------------------------------------------
+        // دائرة برتقالية صغيرة
+        // -----------------------------------------------------
+        Positioned(
+          top: 105,
+          left: 65,
+          child: _SoftCircle(
+            size: 34,
+            color: AppColors.orange,
+            opacity: isDark ? 0.18 : 0.15,
+          ),
+        ),
+
+        // -----------------------------------------------------
+        // شكل زخرفي سفلي
+        // -----------------------------------------------------
+        Positioned(
+          right: 145,
+          bottom: 38,
+          child: _SoftCircle(
+            size: 70,
+            color: AppColors.brand,
+            opacity: isDark ? 0.10 : 0.06,
+          ),
+        ),
+
+        // -----------------------------------------------------
+        // لمعة صغيرة
+        // -----------------------------------------------------
+        Positioned(
+          top: 48,
+          left: 150,
+          child: Icon(
+            Icons.auto_awesome_rounded,
+            size: 18,
+            color: AppColors.gold.withValues(
+              alpha: isDark ? 0.55 : 0.75,
+            ),
+          ),
+        ),
+
+        // -----------------------------------------------------
+        // لمعة ثانية
+        // -----------------------------------------------------
+        Positioned(
+          top: 76,
+          right: 155,
+          child: Icon(
+            Icons.auto_awesome_rounded,
+            size: 12,
+            color: AppColors.brand.withValues(
+              alpha: isDark ? 0.40 : 0.35,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =========================================================
   // الصف العلوي
   // =========================================================
   Widget _buildTopRow() {
-    const glow = [
-      Shadow(
-        color: Colors.white,
-        blurRadius: 10,
-      ),
-      Shadow(
-        color: Colors.white,
-        blurRadius: 4,
-      ),
-    ];
-
     return Row(
       crossAxisAlignment:
           CrossAxisAlignment.center,
       children: [
-        // =========================
+        // =====================================================
         // زر القائمة
-        // =========================
-        Tooltip(
-          message: 'القائمة',
-          child: InkWell(
-            borderRadius:
-                BorderRadius.circular(24),
-            onTap: onOpenDrawer,
-            child: const Padding(
-              padding: EdgeInsets.all(8),
-              child: Icon(
-                Icons.menu_rounded,
-                size: 30,
-                color: AppColors.brandDark,
-              ),
-            ),
-          ),
+        // =====================================================
+        _HeaderCircleButton(
+          tooltip: 'القائمة',
+          icon: Icons.menu_rounded,
+          onTap: onOpenDrawer,
         ),
-
-        const SizedBox(width: 2),
-
-        // =========================
-        // الشعار
-        // =========================
-        _buildLogo(),
 
         const SizedBox(width: 8),
 
-        // =========================
-        // اسم التطبيق
-        // =========================
-        Expanded(
-          child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment:
-                    AlignmentDirectional
-                        .centerStart,
-                child: Text(
-                  'دلالة شبشة',
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight:
-                        FontWeight.w900,
-                    height: 1.1,
-                    color:
-                        AppColors.brandDark,
-                    shadows: glow,
-                  ),
-                ),
-              ),
+        // =====================================================
+        // الشعار
+        // =====================================================
+        _buildLogo(),
 
-              Text(
-                'سوقك المحلي في شبشة',
-                maxLines: 1,
-                overflow:
-                    TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight:
-                      FontWeight.w700,
-                  color:
-                      AppColors.brandDark,
-                  shadows: glow,
+        const SizedBox(width: 7),
+
+        // =====================================================
+        // اسم التطبيق
+        // =====================================================
+        Expanded(
+          child: _buildAppTitle(),
+        ),
+
+        const SizedBox(width: 8),
+
+        // =====================================================
+        // حساب المستخدم
+        // =====================================================
+        _HeaderCircleButton(
+          tooltip: isSignedIn
+              ? 'الملف الشخصي'
+              : 'تسجيل الدخول',
+          icon: isSignedIn
+              ? Icons.person_rounded
+              : Icons.person_outline_rounded,
+          onTap: onProfile,
+        ),
+      ],
+    );
+  }
+
+  // =========================================================
+  // عنوان التطبيق
+  // =========================================================
+  Widget _buildAppTitle() {
+    return Column(
+      crossAxisAlignment:
+          CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // -----------------------------------------------------
+        // اسم التطبيق
+        // -----------------------------------------------------
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            'دلالة شبشة',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 27,
+              fontWeight: FontWeight.w900,
+              height: 1.0,
+              color: isDark
+                  ? Colors.white
+                  : AppColors.brandDark,
+              letterSpacing: -0.4,
+              shadows: [
+                Shadow(
+                  color: isDark
+                      ? Colors.black.withValues(
+                          alpha: 0.25,
+                        )
+                      : Colors.white.withValues(
+                          alpha: 0.80,
+                        ),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
 
-        // =========================
-        // حساب المستخدم
-        // =========================
-        Tooltip(
-          message: isSignedIn
-              ? 'الملف الشخصي'
-              : 'تسجيل الدخول',
-          child: GestureDetector(
-            onTap: onProfile,
-            child: Container(
-              width: 46,
-              height: 46,
-              decoration:
-                  BoxDecoration(
-                color: Colors.white.withValues(
-                  alpha: 0.94,
-                ),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(
-                      alpha: 0.15,
-                    ),
-                    blurRadius: 10,
-                    offset:
-                        const Offset(0, 3),
+        const SizedBox(height: 4),
+
+        // -----------------------------------------------------
+        // الشعار النصي
+        // -----------------------------------------------------
+        Text(
+          'سوقك المحلي في شبشة',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: isDark
+                ? Colors.white.withValues(
+                    alpha: 0.85,
+                  )
+                : AppColors.brandDark.withValues(
+                    alpha: 0.78,
                   ),
-                ],
-              ),
-              child: Icon(
-                isSignedIn
-                    ? Icons.person_rounded
-                    : Icons.person_outline_rounded,
-                size: 26,
-                color:
-                    AppColors.brandDark,
-              ),
-            ),
           ),
         ),
       ],
@@ -278,33 +361,39 @@ class HomeHeader extends StatelessWidget {
   // =========================================================
   Widget _buildLogo() {
     return SizedBox(
-      width: 46,
-      height: 52,
+      width: 43,
+      height: 50,
       child: Stack(
         alignment: Alignment.topCenter,
         clipBehavior: Clip.none,
         children: [
+          // ---------------------------------------------------
           // دبوس الموقع
+          // ---------------------------------------------------
           const Icon(
             Icons.location_on_rounded,
-            size: 52,
+            size: 49,
             color: AppColors.brand,
           ),
 
+          // ---------------------------------------------------
           // عربة التسوق
+          // ---------------------------------------------------
           const Positioned(
-            top: 12,
+            top: 11,
             child: Icon(
               Icons.shopping_cart_rounded,
-              size: 17,
+              size: 16,
               color: Colors.white,
             ),
           ),
 
-          // علامة العرض
+          // ---------------------------------------------------
+          // علامة العرض الذهبية
+          // ---------------------------------------------------
           Positioned(
-            top: 0,
-            left: 0,
+            top: -1,
+            left: -1,
             child: Container(
               width: 15,
               height: 15,
@@ -332,68 +421,99 @@ class HomeHeader extends StatelessWidget {
   Widget _buildSearchField(
     BuildContext context,
   ) {
+    final surfaceColor = isDark
+        ? const Color(0xFF302052)
+        : Colors.white;
+
+    final textColor = isDark
+        ? Colors.white
+        : AppColors.ink;
+
     return Container(
-      height: 54,
+      height: 56,
       decoration: BoxDecoration(
-        color: isDark
-            ? Theme.of(context)
-                .colorScheme
-                .surfaceContainerHigh
-            : Colors.white,
+        color: surfaceColor,
         borderRadius:
             BorderRadius.circular(30),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(
+                  alpha: 0.08,
+                )
+              : Colors.white,
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
             color: AppColors.brand.withValues(
-              alpha: 0.20,
+              alpha: isDark ? 0.30 : 0.15,
             ),
-            blurRadius: 18,
-            offset:
-                const Offset(0, 6),
+            blurRadius: 20,
+            offset: const Offset(0, 7),
           ),
+          if (!isDark)
+            BoxShadow(
+              color: Colors.white.withValues(
+                alpha: 0.85,
+              ),
+              blurRadius: 5,
+              offset: const Offset(0, -2),
+            ),
         ],
       ),
-      child:
-          ValueListenableBuilder<
-              TextEditingValue>(
-        valueListenable:
-            searchController,
+      child: ValueListenableBuilder<
+          TextEditingValue>(
+        valueListenable: searchController,
         builder: (
           context,
           value,
           _,
         ) {
           return TextField(
-            controller:
-                searchController,
+            controller: searchController,
             textInputAction:
                 TextInputAction.search,
-            onChanged:
-                onSearchChanged,
-            style: const TextStyle(
+            onChanged: onSearchChanged,
+            style: TextStyle(
               fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: textColor,
             ),
-            decoration:
-                InputDecoration(
+            decoration: InputDecoration(
               hintText:
                   'ابحث عن إعلان أو منطقة ...',
               hintStyle: TextStyle(
                 fontSize: 14.5,
-                color: Theme.of(
-                  context,
-                )
-                    .colorScheme
-                    .onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+                color: isDark
+                    ? Colors.white.withValues(
+                        alpha: 0.55,
+                      )
+                    : AppColors.ink.withValues(
+                        alpha: 0.48,
+                      ),
               ),
 
+              // ------------------------------------------------
               // أيقونة البحث
-              prefixIcon: Icon(
-                Icons.search_rounded,
-                size: 27,
-                color: titleColor,
+              // ------------------------------------------------
+              prefixIcon: Padding(
+                padding:
+                    const EdgeInsetsDirectional
+                        .only(
+                  start: 6,
+                  end: 2,
+                ),
+                child: Icon(
+                  Icons.search_rounded,
+                  size: 28,
+                  color: AppColors.brand,
+                ),
               ),
 
+              // ------------------------------------------------
               // زر مسح البحث
+              // ------------------------------------------------
               suffixIcon:
                   value.text.isNotEmpty
                       ? IconButton(
@@ -401,10 +521,16 @@ class HomeHeader extends StatelessWidget {
                               onClearSearch,
                           tooltip:
                               'مسح البحث',
-                          icon:
-                              const Icon(
+                          icon: Icon(
                             Icons.close_rounded,
                             size: 21,
+                            color: isDark
+                                ? Colors.white70
+                                : AppColors
+                                    .ink
+                                    .withValues(
+                                    alpha: 0.65,
+                                  ),
                           ),
                         )
                       : null,
@@ -423,11 +549,103 @@ class HomeHeader extends StatelessWidget {
 
               contentPadding:
                   const EdgeInsets.symmetric(
-                vertical: 17,
+                vertical: 18,
+                horizontal: 4,
               ),
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// =============================================================
+// زر دائري للهيدر
+// =============================================================
+class _HeaderCircleButton
+    extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _HeaderCircleButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        child: InkWell(
+          onTap: onTap,
+          customBorder:
+              const CircleBorder(),
+          child: Ink(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(
+                alpha: 0.94,
+              ),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.brand
+                    .withValues(alpha: 0.08),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.brand
+                      .withValues(alpha: 0.14),
+                  blurRadius: 12,
+                  offset:
+                      const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Icon(
+              icon,
+              size: 25,
+              color: AppColors.brandDark,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================
+// دائرة ناعمة للزخرفة
+// =============================================================
+class _SoftCircle
+    extends StatelessWidget {
+  final double size;
+  final Color color;
+  final double opacity;
+
+  const _SoftCircle({
+    required this.size,
+    required this.color,
+    required this.opacity,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(
+          alpha: opacity,
+        ),
       ),
     );
   }
