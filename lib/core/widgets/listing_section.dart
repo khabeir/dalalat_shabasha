@@ -111,29 +111,26 @@ class ListingSection extends StatelessWidget {
     );
   }
 
-  Widget _buildHorizontalListings(
-    List<Map<String, dynamic>> items, {
-    bool commercial = false,
-  }) {
-    return SizedBox(
-      height: cardHeight + 16,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: buildListingCard(
-              items[index],
-              isCommercial: commercial,
-            ),
-          );
-        },
-      ),
-    );
-  }
+Widget _buildHorizontalListings(
+  List<Map<String, dynamic>> items, {
+  bool commercial = false,
+}) {
+  return SizedBox(
+    height: cardHeight - 8,
+    child: ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: items.length,
+      separatorBuilder: (_, __) => const SizedBox(width: 12),
+      itemBuilder: (context, index) {
+        return buildListingCard(
+          items[index],
+          isCommercial: commercial,
+        );
+      },
+    ),
+  );
+}
 
   @override
   Widget build(BuildContext context) {
