@@ -6,7 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../theme/app_colors.dart';
 
 // =============================================================
-// بيانات خانة واحدة من البنر (كما يعبّئها الأدمن).
+// بيانات خانة واحدة من البنر.
 // =============================================================
 class BannerSlideData {
   final int slot;
@@ -27,7 +27,6 @@ class BannerSlideData {
     );
   }
 
-  // الشكل الافتراضي الذي يظهر إن لم يفعّل الأدمن أي خانة بعد.
   static const fallback = BannerSlideData(
     slot: 0,
     headline: 'دلالة شبشة',
@@ -36,9 +35,7 @@ class BannerSlideData {
 }
 
 // =============================================================
-// البنر: يجلب الخانات المفعّلة من لوحة الأدمن ويعرضها كشرائح
-// قابلة للتمرير، وإن لم توجد خانة مفعّلة يعرض الشكل الافتراضي.
-// نفس الاستدعاء القديم بلا تغيير: HomeBanner(onAddListing:, onBrowseCategories:).
+// البنر الرئيسي.
 // =============================================================
 class HomeBanner extends StatefulWidget {
   final VoidCallback onAddListing;
@@ -70,7 +67,10 @@ class _HomeBannerState extends State<HomeBanner> {
 
     _loadSlides();
 
-    _refreshTimer = Timer.periodic(_refreshInterval, (_) => _loadSlides());
+    _refreshTimer = Timer.periodic(
+      _refreshInterval,
+      (_) => _loadSlides(),
+    );
   }
 
   @override
@@ -92,7 +92,9 @@ class _HomeBannerState extends State<HomeBanner> {
 
       final rows = List<Map<String, dynamic>>.from(response)
           .map(BannerSlideData.fromRow)
-          .where((slide) => slide.headline.trim().isNotEmpty)
+          .where(
+            (slide) => slide.headline.trim().isNotEmpty,
+          )
           .toList();
 
       if (!mounted) return;
@@ -102,7 +104,6 @@ class _HomeBannerState extends State<HomeBanner> {
       _restartAutoPlay();
     } catch (e) {
       debugPrint('loadBannerSlides error: $e');
-      // لا نعطّل الصفحة الرئيسية؛ يبقى الشكل الافتراضي ظاهراً.
     }
   }
 
@@ -111,20 +112,25 @@ class _HomeBannerState extends State<HomeBanner> {
 
     if (_slides.length < 2) return;
 
-    _autoPlayTimer = Timer.periodic(const Duration(seconds: 6), (_) {
-      if (!mounted || !_pageController.hasClients) return;
+    _autoPlayTimer = Timer.periodic(
+      const Duration(seconds: 6),
+      (_) {
+        if (!mounted || !_pageController.hasClients) return;
 
-      _pageController.animateToPage(
-        (_currentPage.value + 1) % _slides.length,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeInOut,
-      );
-    });
+        _pageController.animateToPage(
+          (_currentPage.value + 1) % _slides.length,
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeInOut,
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final slides = _slides.isEmpty ? const [BannerSlideData.fallback] : _slides;
+    final slides = _slides.isEmpty
+        ? const [BannerSlideData.fallback]
+        : _slides;
 
     return Column(
       children: [
@@ -133,17 +139,24 @@ class _HomeBannerState extends State<HomeBanner> {
           child: PageView.builder(
             controller: _pageController,
             itemCount: slides.length,
-            onPageChanged: (index) => _currentPage.value = index,
+            onPageChanged: (index) {
+              _currentPage.value = index;
+            },
             itemBuilder: (context, index) {
               final slide = slides[index];
 
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: BannerCardContent(
+                  slot: slide.slot,
                   headline: slide.headline,
                   subtitle: slide.subtitle,
                   onAddListing: widget.onAddListing,
-                  onBrowseCategories: widget.onBrowseCategories,
+                  onBrowseCategories:
+                      widget.onBrowseCategories,
                 ),
               );
             },
@@ -155,24 +168,44 @@ class _HomeBannerState extends State<HomeBanner> {
           ValueListenableBuilder<int>(
             valueListenable: _currentPage,
             builder: (context, current, _) {
+              final currentIndex =
+                  current.clamp(0, slides.length - 1).toInt();
+
+              final currentSlot =
+                  slides[currentIndex].slot;
+
               return Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(slides.length, (index) {
-                  final active = index == current;
+                children: List.generate(
+                  slides.length,
+                  (index) {
+                    final active = index == currentIndex;
 
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    width: active ? 18 : 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: active
-                          ? AppColors.brand
-                          : AppColors.brand.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  );
-                }),
+                    return AnimatedContainer(
+                      duration:
+                          const Duration(milliseconds: 200),
+                      margin: const EdgeInsets.symmetric(
+                        horizontal: 3,
+                      ),
+                      width: active ? 18 : 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: active
+                            ? BannerCardContent
+                                .primaryColorForSlot(
+                                currentSlot,
+                              )
+                            : BannerCardContent
+                                .primaryColorForSlot(
+                                slides[index].slot,
+                              )
+                                .withValues(alpha: 0.25),
+                        borderRadius:
+                            BorderRadius.circular(4),
+                      ),
+                    );
+                  },
+                ),
               );
             },
           ),
@@ -183,10 +216,11 @@ class _HomeBannerState extends State<HomeBanner> {
 }
 
 // =============================================================
-// شكل بطاقة البنر نفسه (بلا تغيير عن التصميم الحالي)، مستقل عن
-// مصدر النص حتى تستخدمه شاشة تحكم الأدمن كمعاينة مطابقة تماماً.
+// بطاقة البنر.
+// اللون يتحدد تلقائياً حسب رقم الخانة.
 // =============================================================
 class BannerCardContent extends StatelessWidget {
+  final int slot;
   final String headline;
   final String subtitle;
   final VoidCallback? onAddListing;
@@ -194,15 +228,54 @@ class BannerCardContent extends StatelessWidget {
 
   const BannerCardContent({
     super.key,
+    required this.slot,
     required this.headline,
     required this.subtitle,
     this.onAddListing,
     this.onBrowseCategories,
   });
 
+  // ===========================================================
+  // اللون الأساسي لكل خانة.
+  // ===========================================================
+  static Color primaryColorForSlot(int slot) {
+    switch (slot) {
+      case 2:
+        return const Color(0xFFFF8A1F);
+
+      case 3:
+        return const Color(0xFF00A884);
+
+      case 1:
+      default:
+        return AppColors.brand;
+    }
+  }
+
+  // ===========================================================
+  // اللون الداكن لكل خانة.
+  // ===========================================================
+  static Color darkColorForSlot(int slot) {
+    switch (slot) {
+      case 2:
+        return const Color(0xFFD95F00);
+
+      case 3:
+        return const Color(0xFF00695C);
+
+      case 1:
+      default:
+        return AppColors.brandDark;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor =
+        primaryColorForSlot(slot);
+
+    final darkColor =
+        darkColorForSlot(slot);
 
     return Container(
       height: 172,
@@ -210,7 +283,8 @@ class BannerCardContent extends StatelessWidget {
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: AppColors.brand.withValues(alpha: 0.16),
+            color:
+                primaryColor.withValues(alpha: 0.20),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -220,99 +294,203 @@ class BannerCardContent extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
+          // -----------------------------------------------------
+          // خلفية البنر.
+          // -----------------------------------------------------
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topRight,
                 end: Alignment.bottomLeft,
-                colors: isDark
-                    ? [
-                        AppColors.brandDark,
-                        AppColors.brandDark.withValues(alpha: 0.82),
-                      ]
-                    : [
-                        AppColors.brand,
-                        AppColors.brandDark,
-                      ],
+                colors: [
+                  primaryColor,
+                  darkColor,
+                ],
               ),
             ),
           ),
 
-          const Positioned(
+          // -----------------------------------------------------
+          // الدائرة الزخرفية العلوية.
+          // -----------------------------------------------------
+          Positioned(
             top: -45,
             left: -30,
-            child: _DecorativeCircle(size: 150, opacity: 0.10),
+            child: _DecorativeCircle(
+              size: 150,
+              opacity: 0.10,
+            ),
           ),
 
-          const Positioned(
+          // -----------------------------------------------------
+          // الدائرة الزخرفية السفلية.
+          // -----------------------------------------------------
+          Positioned(
             bottom: -55,
             right: -25,
-            child: _DecorativeCircle(size: 160, opacity: 0.09),
+            child: _DecorativeCircle(
+              size: 160,
+              opacity: 0.09,
+            ),
           ),
 
+          // -----------------------------------------------------
+          // أيقونة المتجر الخلفية.
+          // -----------------------------------------------------
           Positioned(
             top: 18,
             right: 18,
             child: Icon(
               Icons.storefront_rounded,
               size: 58,
-              color: Colors.white.withValues(alpha: 0.16),
+              color:
+                  Colors.white.withValues(alpha: 0.16),
             ),
           ),
 
+          // -----------------------------------------------------
+          // محتوى البنر.
+          // -----------------------------------------------------
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              18,
+              20,
+              16,
+            ),
             child: Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        headline,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          height: 1.1,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          height: 1.35,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
+                  child: LayoutBuilder(
+                    builder: (
+                      context,
+                      constraints,
+                    ) {
+                      final isSmallScreen =
+                          constraints.maxWidth < 260;
+
+                      return Column(
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                        mainAxisAlignment:
+                            MainAxisAlignment.center,
                         children: [
-                          _BannerButton(
-                            icon: Icons.add_rounded,
-                            label: 'أضف إعلانك',
-                            onTap: onAddListing,
+                          // -------------------------------------
+                          // العنوان.
+                          // -------------------------------------
+                          Text(
+                            headline,
+                            maxLines: 1,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize:
+                                  isSmallScreen
+                                      ? 20
+                                      : 24,
+                              fontWeight:
+                                  FontWeight.w900,
+                              height: 1.1,
+                            ),
                           ),
-                          const SizedBox(width: 8),
-                          _BannerButton(
-                            icon: Icons.grid_view_rounded,
-                            label: 'التصنيفات',
-                            outlined: true,
-                            onTap: onBrowseCategories,
+
+                          const SizedBox(height: 6),
+
+                          // -------------------------------------
+                          // الوصف.
+                          // -------------------------------------
+                          Text(
+                            subtitle,
+                            maxLines: 2,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: Colors.white
+                                  .withValues(
+                                alpha: 0.92,
+                              ),
+                              fontSize:
+                                  isSmallScreen
+                                      ? 12
+                                      : 13.5,
+                              fontWeight:
+                                  FontWeight.w600,
+                              height: 1.35,
+                            ),
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // -------------------------------------
+                          // الأزرار المتجاوبة.
+                          // -------------------------------------
+                          LayoutBuilder(
+                            builder: (
+                              context,
+                              buttonConstraints,
+                            ) {
+                              final compact =
+                                  buttonConstraints
+                                          .maxWidth <
+                                      260;
+
+                              return Row(
+                                children: [
+                                  Flexible(
+                                    child:
+                                        _BannerButton(
+                                      icon:
+                                          Icons.add_rounded,
+                                      label:
+                                          'أضف إعلانك',
+                                      onTap:
+                                          onAddListing,
+                                      darkColor:
+                                          darkColor,
+                                      compact:
+                                          compact,
+                                    ),
+                                  ),
+
+                                  const SizedBox(
+                                    width: 8,
+                                  ),
+
+                                  Flexible(
+                                    child:
+                                        _BannerButton(
+                                      icon: Icons
+                                          .grid_view_rounded,
+                                      label:
+                                          'التصنيفات',
+                                      outlined: true,
+                                      onTap:
+                                          onBrowseCategories,
+                                      darkColor:
+                                          darkColor,
+                                      compact:
+                                          compact,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ],
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
+
+                // -------------------------------------------------
+                // مساحة صغيرة قبل الأيقونة.
+                // -------------------------------------------------
                 const SizedBox(width: 8),
+
+                // -------------------------------------------------
+                // أيقونة حقيبة التسوق.
+                // -------------------------------------------------
                 const SizedBox(
                   width: 76,
                   child: Icon(
@@ -330,55 +508,96 @@ class BannerCardContent extends StatelessWidget {
   }
 }
 
+// =============================================================
+// زر البنر المتجاوب.
+// =============================================================
 class _BannerButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final bool outlined;
+  final Color darkColor;
+  final bool compact;
 
   const _BannerButton({
     required this.icon,
     required this.label,
     required this.onTap,
+    required this.darkColor,
+    required this.compact,
     this.outlined = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final iconSize = compact ? 15.0 : 18.0;
+
+    final fontSize = compact ? 10.0 : 12.5;
+
+    final horizontalPadding =
+        compact ? 8.0 : 12.0;
+
+    final verticalPadding =
+        compact ? 6.0 : 7.0;
+
+    final radius = compact ? 14.0 : 18.0;
+
     return Material(
       color: outlined
           ? Colors.white.withValues(alpha: 0.12)
           : Colors.white,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(radius),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius:
+            BorderRadius.circular(radius),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 38),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          constraints: BoxConstraints(
+            minHeight: compact ? 34 : 38,
+          ),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
+          ),
           decoration: outlined
               ? BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius:
+                      BorderRadius.circular(radius),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.55),
+                    color: Colors.white
+                        .withValues(alpha: 0.55),
                   ),
                 )
               : null,
           child: Row(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment:
+                MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
-                size: 18,
-                color: outlined ? Colors.white : AppColors.brandDark,
+                size: iconSize,
+                color: outlined
+                    ? Colors.white
+                    : darkColor,
               ),
+
               const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  color: outlined ? Colors.white : AppColors.brandDark,
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
+
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow:
+                      TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: outlined
+                        ? Colors.white
+                        : darkColor,
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],
@@ -389,6 +608,9 @@ class _BannerButton extends StatelessWidget {
   }
 }
 
+// =============================================================
+// دائرة زخرفية.
+// =============================================================
 class _DecorativeCircle extends StatelessWidget {
   final double size;
   final double opacity;
@@ -405,7 +627,9 @@ class _DecorativeCircle extends StatelessWidget {
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: Colors.white.withValues(alpha: opacity),
+        color: Colors.white.withValues(
+          alpha: opacity,
+        ),
       ),
     );
   }

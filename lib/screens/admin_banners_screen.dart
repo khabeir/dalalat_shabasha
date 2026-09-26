@@ -264,11 +264,12 @@ class _AdminBannersScreenState extends State<AdminBannersScreen> {
               return Opacity(
                 opacity: active ? 1 : 0.45,
                 child: BannerCardContent(
-                  headline: headline.isEmpty ? 'عنوان الإعلان' : headline,
-                  subtitle: subtitleController.text.trim(),
-                  onAddListing: null,
-                  onBrowseCategories: null,
-                ),
+  slot: slot,
+  headline: headline.isEmpty ? 'عنوان الإعلان' : headline,
+  subtitle: subtitleController.text.trim(),
+  onAddListing: null,
+  onBrowseCategories: null,
+),
               );
             },
           ),
