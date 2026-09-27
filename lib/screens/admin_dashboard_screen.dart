@@ -3319,7 +3319,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 Colors.white,
             elevation: 0,
             title: const Text(
-              'لوحة تحكم الأدمن',
+              'لوحة التحكم',
               style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w900,
