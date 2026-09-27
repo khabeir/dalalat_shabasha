@@ -34,6 +34,7 @@ import '../core/widgets/home_banner.dart';
 import '../core/widgets/home_drawer.dart';
 import '../core/widgets/listing_card.dart';
 import '../core/widgets/home_header.dart';
+import '../services/offline_cache_service.dart';
 
 import 'add_listing_screen.dart';
 import 'admin_dashboard_screen.dart';
@@ -358,79 +359,125 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadCategories() async {
+  try {
     final response = await _supabase
         .from('categories')
         .select('id, name, icon')
         .eq('is_active', true)
         .order('sort_order');
 
+    final categories =
+        List<Map<String, dynamic>>.from(response);
+
     if (!mounted) return;
 
     setState(() {
-      _categories =
-          List<Map<String, dynamic>>.from(response);
+      _categories = categories;
+    });
+
+    // حفظ آخر نسخة ناجحة محلياً.
+    await OfflineCacheService.instance
+        .saveCategories(categories);
+  } catch (e) {
+    debugPrint(
+      'loadCategories online error: $e',
+    );
+
+    // محاولة استخدام آخر نسخة محفوظة.
+    final cached =
+        await OfflineCacheService.instance
+            .getCategories();
+
+    if (!mounted || cached.isEmpty) return;
+
+    setState(() {
+      _categories = cached;
     });
   }
-
-  int _pageSizeFor(int? categoryId) {
-    return categoryId == null
-        ? _homePageSize
-        : _categoryPageSize;
-  }
+}
 
   Future<void> _loadListings({bool reset = true}) async {
-    if (!reset &&
-        (_loadingMore || !_hasMore || _listingsLoading)) {
+  if (!reset &&
+      (_loadingMore || !_hasMore || _listingsLoading)) {
+    return;
+  }
+
+  final requestId =
+      reset ? ++_listingsRequestId : _listingsRequestId;
+
+  final categoryId = _selectedCategoryId;
+  final pageSize = _pageSizeFor(categoryId);
+  final page = reset ? 0 : _page;
+
+  if (!reset && mounted) {
+    setState(() => _loadingMore = true);
+  }
+
+  try {
+    final rows = await _fetchListings(
+      from: page * pageSize,
+      to: page * pageSize + pageSize - 1,
+      categoryId: categoryId,
+    );
+
+    if (!mounted || requestId != _listingsRequestId) {
       return;
     }
 
-    final requestId =
-        reset ? ++_listingsRequestId : _listingsRequestId;
+    setState(() {
+      _listings = reset
+          ? rows
+          : [..._listings, ...rows];
 
-    final categoryId = _selectedCategoryId;
-    final pageSize = _pageSizeFor(categoryId);
-    final page = reset ? 0 : _page;
+      _page = page + 1;
+      _hasMore = rows.length == pageSize;
+      _loadingMore = false;
+      _listingsLoading = false;
+    });
 
-    if (!reset && mounted) {
-      setState(() => _loadingMore = true);
+    // نحفظ فقط أول تحميل للقائمة الرئيسية.
+    // حتى لا يستبدل تحميل قسم معين الكاش الرئيسي.
+    if (reset && categoryId == null) {
+      await OfflineCacheService.instance
+          .saveListings(rows);
+    }
+  } catch (e) {
+    debugPrint(
+      'loadListings online error: $e',
+    );
+
+    if (!mounted || requestId != _listingsRequestId) {
+      return;
     }
 
-    try {
-      final rows = await _fetchListings(
-        from: page * pageSize,
-        to: page * pageSize + pageSize - 1,
-        categoryId: categoryId,
-      );
+    // عند فشل الإنترنت، نستخدم آخر نسخة محفوظة.
+    if (reset && categoryId == null) {
+      final cached =
+          await OfflineCacheService.instance
+              .getListings();
 
-      if (!mounted || requestId != _listingsRequestId) {
+      if (cached.isNotEmpty) {
+        setState(() {
+          _listings = cached;
+          _page = 1;
+          _hasMore = false;
+          _loadingMore = false;
+          _listingsLoading = false;
+          _error = null;
+        });
+
         return;
       }
-
-      setState(() {
-        _listings = reset
-            ? rows
-            : [..._listings, ...rows];
-
-        _page = page + 1;
-        _hasMore = rows.length == pageSize;
-        _loadingMore = false;
-        _listingsLoading = false;
-      });
-    } catch (e) {
-      debugPrint('loadListings error: $e');
-
-      if (!mounted || requestId != _listingsRequestId) {
-        return;
-      }
-
-      setState(() {
-        _loadingMore = false;
-        _listingsLoading = false;
-      });
-
-      if (reset) rethrow;
     }
+
+    setState(() {
+      _loadingMore = false;
+      _listingsLoading = false;
+    });
+
+    if (reset) rethrow;
   }
+}
 
   Future<List<Map<String, dynamic>>> _fetchListings({
     required int from,
@@ -563,95 +610,115 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   Future<void> _loadPromotedListings() async {
-    try {
-      final now =
-          DateTime.now().toUtc().toIso8601String();
+  try {
+    final now =
+        DateTime.now().toUtc().toIso8601String();
 
-      final promotedResponse = await _supabase
-          .from('promoted_listings')
-          .select(
-            'id, listing_id, start_at, end_at, '
-            'is_active, created_by',
-          )
-          .eq('is_active', true)
-          .lte('start_at', now)
-          .gt('end_at', now)
-          .order(
-            'start_at',
-            ascending: false,
-          );
+    final promotedResponse = await _supabase
+        .from('promoted_listings')
+        .select(
+          'id, listing_id, start_at, end_at, '
+          'is_active, created_by',
+        )
+        .eq('is_active', true)
+        .lte('start_at', now)
+        .gt('end_at', now)
+        .order(
+          'start_at',
+          ascending: false,
+        );
 
-      final promotedRows =
-          List<Map<String, dynamic>>.from(
-        promotedResponse,
-      );
+    final promotedRows =
+        List<Map<String, dynamic>>.from(
+      promotedResponse,
+    );
 
-      final listingIds = promotedRows
-          .map((item) => item['listing_id'])
-          .where((id) => id != null)
-          .toList();
+    final listingIds = promotedRows
+        .map((item) => item['listing_id'])
+        .where((id) => id != null)
+        .toList();
 
-      if (listingIds.isEmpty) {
-        if (mounted) {
-          setState(() => _promotedListings = []);
-        }
-
-        return;
+    if (listingIds.isEmpty) {
+      if (mounted) {
+        setState(() => _promotedListings = []);
       }
 
-      final listingsResponse = await _supabase
-          .from('listings')
-          .select(_listingColumns)
-          .inFilter('id', listingIds)
-          .eq('status', 'approved');
+      await OfflineCacheService.instance
+          .savePromotedListings([]);
 
-      final listingsById =
-          <dynamic, Map<String, dynamic>>{};
-
-      for (final listing
-          in List<Map<String, dynamic>>.from(
-        listingsResponse,
-      )) {
-        listingsById[listing['id']] = listing;
-      }
-
-      final result = <Map<String, dynamic>>[];
-
-      for (final promoted in promotedRows) {
-        final listing =
-            listingsById[promoted['listing_id']];
-
-        if (listing == null) continue;
-
-        final item =
-            Map<String, dynamic>.from(listing);
-
-        item['promoted_listing_id'] =
-            promoted['id'];
-
-        item['promotion_start_at'] =
-            promoted['start_at'];
-
-        item['promotion_end_at'] =
-            promoted['end_at'];
-
-        item['promotion_is_active'] =
-            promoted['is_active'];
-
-        item['is_commercial'] = true;
-
-        result.add(item);
-      }
-
-      await _attachCoverImages(result);
-
-      if (!mounted) return;
-
-      setState(() => _promotedListings = result);
-    } catch (e) {
-      debugPrint('loadPromoted error: $e');
+      return;
     }
+
+    final listingsResponse = await _supabase
+        .from('listings')
+        .select(_listingColumns)
+        .inFilter('id', listingIds)
+        .eq('status', 'approved');
+
+    final listingsById =
+        <dynamic, Map<String, dynamic>>{};
+
+    for (final listing
+        in List<Map<String, dynamic>>.from(
+      listingsResponse,
+    )) {
+      listingsById[listing['id']] = listing;
+    }
+
+    final result = <Map<String, dynamic>>[];
+
+    for (final promoted in promotedRows) {
+      final listing =
+          listingsById[promoted['listing_id']];
+
+      if (listing == null) continue;
+
+      final item =
+          Map<String, dynamic>.from(listing);
+
+      item['promoted_listing_id'] =
+          promoted['id'];
+
+      item['promotion_start_at'] =
+          promoted['start_at'];
+
+      item['promotion_end_at'] =
+          promoted['end_at'];
+
+      item['promotion_is_active'] =
+          promoted['is_active'];
+
+      item['is_commercial'] = true;
+
+      result.add(item);
+    }
+
+    await _attachCoverImages(result);
+
+    if (!mounted) return;
+
+    setState(() => _promotedListings = result);
+
+    // حفظ آخر نسخة ناجحة.
+    await OfflineCacheService.instance
+        .savePromotedListings(result);
+  } catch (e) {
+    debugPrint(
+      'loadPromoted online error: $e',
+    );
+
+    // محاولة عرض آخر نسخة محفوظة.
+    final cached =
+        await OfflineCacheService.instance
+            .getPromotedListings();
+
+    if (!mounted || cached.isEmpty) return;
+
+    setState(() {
+      _promotedListings = cached;
+    });
   }
+}
 
   Future<void> _checkAdminStatus() async {
     try {
