@@ -1,3 +1,5 @@
+// lib/services/visitor_tracking_service.dart
+
 import 'dart:async';
 import 'dart:math';
 
@@ -12,14 +14,13 @@ class VisitorTrackingService {
   final SupabaseClient _supabase = Supabase.instance.client;
 
   Timer? _heartbeatTimer;
+
   String? _sessionId;
+
   bool _started = false;
 
   Future<void> start() async {
     if (_started) return;
-
-    final user = _supabase.auth.currentUser;
-    if (user == null) return;
 
     final sessionId = _createSessionId();
 
@@ -55,11 +56,6 @@ class VisitorTrackingService {
     final sessionId = _sessionId;
 
     if (!_started || sessionId == null) return;
-
-    if (_supabase.auth.currentUser == null) {
-      dispose();
-      return;
-    }
 
     try {
       await _supabase.rpc(

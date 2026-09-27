@@ -1,3 +1,5 @@
+// lib/services/visitor_stats_service.dart
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class VisitorStatsService {
@@ -8,9 +10,33 @@ class VisitorStatsService {
 
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  Future<int> getCurrentVisitors() async {
+  Future<int> getCurrentAnonymousVisitors() async {
     final response = await _supabase.rpc(
-      'get_current_visitors',
+      'get_current_anonymous_visitors',
+    );
+
+    if (response is num) {
+      return response.toInt();
+    }
+
+    return int.tryParse(response.toString()) ?? 0;
+  }
+
+  Future<int> getCurrentMembers() async {
+    final response = await _supabase.rpc(
+      'get_current_members',
+    );
+
+    if (response is num) {
+      return response.toInt();
+    }
+
+    return int.tryParse(response.toString()) ?? 0;
+  }
+
+  Future<int> getCurrentTotal() async {
+    final response = await _supabase.rpc(
+      'get_current_total',
     );
 
     if (response is num) {
@@ -34,13 +60,17 @@ class VisitorStatsService {
 
   Future<Map<String, int>> getStats() async {
     final results = await Future.wait([
-      getCurrentVisitors(),
+      getCurrentAnonymousVisitors(),
+      getCurrentMembers(),
+      getCurrentTotal(),
       getTotalVisits(),
     ]);
 
     return {
-      'current': results[0],
-      'total': results[1],
+      'anonymous': results[0],
+      'members': results[1],
+      'current': results[2],
+      'total': results[3],
     };
   }
 }
