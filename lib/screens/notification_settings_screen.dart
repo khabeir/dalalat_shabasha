@@ -301,7 +301,7 @@ class _NotificationSettingsScreenState
                 _notificationsEnabled = value;
               });
             },
-            activeColor: AppColors.brand,
+            activeThumbColor: AppColors.brand,
             title: const Text(
               'تفعيل الإشعارات',
               style: TextStyle(
@@ -360,7 +360,7 @@ class _NotificationSettingsScreenState
                       _newListingsEnabled = value;
                     });
                   },
-            activeColor: AppColors.brand,
+            activeThumbColor: AppColors.brand,
             title: const Text(
               'الإعلانات الجديدة',
               style: TextStyle(
@@ -393,7 +393,7 @@ class _NotificationSettingsScreenState
                       _featuredListingsEnabled = value;
                     });
                   },
-            activeColor: AppColors.orange,
+            activeThumbColor: AppColors.orange,
             title: const Text(
               'الإعلانات المميزة',
               style: TextStyle(
@@ -426,7 +426,7 @@ class _NotificationSettingsScreenState
                       _adminAnnouncementsEnabled = value;
                     });
                   },
-            activeColor: AppColors.brand,
+            activeThumbColor: AppColors.brand,
             title: const Text(
               'إعلانات وتنبيهات الإدارة',
               style: TextStyle(
@@ -598,7 +598,7 @@ class _NotificationSettingsScreenState
                                 value;
                           });
                         },
-                        activeColor: AppColors.brand,
+                        activeThumbColor: AppColors.brand,
                         title: Text(
                           categoryName,
                           style: const TextStyle(
