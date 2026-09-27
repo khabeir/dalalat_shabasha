@@ -29,15 +29,15 @@ class _ReportGroup {
       reports.map((report) => report['reporter_id']).toSet().length;
 }
 
-class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({super.key});
+class AdminListingsScreen extends StatefulWidget {
+  const AdminListingsScreen({super.key});
 
   @override
-  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+  State<AdminListingsScreen> createState() => _AdminListingsScreenState();
 }
 
-class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  static const _approvedListingsPageSize = 30;
+class _AdminListingsScreenState extends State<AdminListingsScreen> {
+  static const _approvedPageSize = 30;
 
   final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -47,32 +47,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Timer? _debounce;
   Timer? _visitorStatsTimer;
 
-  bool _isCheckingAdmin = true;
-  bool _isCurrentUserAdmin = false;
-  bool _isLoadingDashboard = true;
-  bool _dashboardLoadFailed = false;
+  bool _checkingAdmin = true;
+  bool _isAdmin = false;
+  bool _loading = true;
+  bool _loadFailed = false;
 
-  bool _isLoadingVisitorStats = false;
+  bool _loadingVisitorStats = false;
 
-  final Set<int> _processingListingIds = {};
+  final Set<int> _busyIds = {};
 
-  List<Map<String, dynamic>> _pendingListings = [];
-  List<Map<String, dynamic>> _approvedListings = [];
-  List<Map<String, dynamic>> _activePromotions = [];
+  List<Map<String, dynamic>> _pending = [];
+  List<Map<String, dynamic>> _approved = [];
+  List<Map<String, dynamic>> _promotions = [];
 
-  List<_ReportGroup> _listingReportGroups = [];
+  List<_ReportGroup> _reportGroups = [];
 
   String? _reportsError;
 
-  Map<int, String> _categoryNamesById = {};
-  final Map<int, List<String>> _listingImageUrls = {};
-  final Map<String, String> _sellerNamesById = {};
+  Map<int, String> _categoryNames = {};
+  final Map<int, List<String>> _imageUrls = {};
+  final Map<String, String> _sellerNames = {};
 
-  String _approvedSearchQuery = '';
+  String _approvedQuery = '';
 
-  int _approvedListingsPage = 0;
-  bool _hasMoreApprovedListings = true;
-  bool _isLoadingMoreApproved = false;
+  int _approvedPage = 0;
+  bool _approvedHasMore = true;
+  bool _approvedLoadingMore = false;
 
   // اسم Bucket الصور.
   static const String _bucket = 'listing-images';
@@ -82,21 +82,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       NumberFormat('#,##0', 'en');
 
   // =========================
-  // حالة الصفحة والبيانات
+  // إحصائيات الزوار
   // =========================
 
-  int _currentAnonymousVisitors = 0;
-  int _currentOnlineMembers = 0;
-  int _currentOnlineTotal = 0;
-  int _totalVisitSessions = 0;
+  int _anonymousVisitors = 0;
+  int _currentMembers = 0;
+  int _currentTotal = 0;
+  int _totalVisits = 0;
 
-  // =========================
-  // واجهة إحصائيات الزوار
-  // =========================
-
-  Widget _buildVisitorStatisticsCard() {
+  Widget _buildVisitorStatsCard() {
     final total =
-        NumberFormat('#,##0', 'en').format(_totalVisitSessions);
+        NumberFormat('#,##0', 'en').format(_totalVisits);
 
     Widget item({
       required IconData icon,
@@ -170,19 +166,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             children: [
               item(
                 icon: Icons.person_outline,
-                value: '$_currentAnonymousVisitors',
+                value: '$_anonymousVisitors',
                 label: 'زوار متصلون',
               ),
               const SizedBox(width: 7),
               item(
                 icon: Icons.people_outline,
-                value: '$_currentOnlineMembers',
+                value: '$_currentMembers',
                 label: 'أعضاء متصلون',
               ),
               const SizedBox(width: 7),
               item(
                 icon: Icons.circle,
-                value: '$_currentOnlineTotal',
+                value: '$_currentTotal',
                 label: 'إجمالي المتصلين',
               ),
               const SizedBox(width: 7),
@@ -217,7 +213,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   // =========================
-  // الأدوات المساعدة
+  // أدوات مساعدة
   // =========================
 
   void _showSnack(
@@ -437,7 +433,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return listing['promoted_listing_id'] != null;
   }
 
-  void _openListingDetails(
+  void _openListing(
     Map<String, dynamic> listing,
   ) {
     final id = listing['id'];
@@ -454,15 +450,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   // =========================
-  // منطق إحصائيات الزوار
+  // إحصائيات الزوار
   // =========================
 
-  Future<void> _loadDashboardVisitorStats() async {
-    if (!_isCurrentUserAdmin || _isLoadingVisitorStats) {
+  Future<void> _loadVisitorStats() async {
+    if (!_isAdmin || _loadingVisitorStats) {
       return;
     }
 
-    _isLoadingVisitorStats = true;
+    _loadingVisitorStats = true;
 
     if (mounted) {
       setState(() {});
@@ -475,13 +471,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (!mounted) return;
 
       setState(() {
-        _currentAnonymousVisitors =
+        _anonymousVisitors =
             stats['anonymous'] ?? 0;
-        _currentOnlineMembers =
+        _currentMembers =
             stats['members'] ?? 0;
-        _currentOnlineTotal =
+        _currentTotal =
             stats['current'] ?? 0;
-        _totalVisitSessions =
+        _totalVisits =
             stats['total'] ?? 0;
       });
     } catch (e) {
@@ -489,7 +485,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'visitor stats error: $e',
       );
     } finally {
-      _isLoadingVisitorStats = false;
+      _loadingVisitorStats = false;
 
       if (mounted) {
         setState(() {});
@@ -497,17 +493,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  void _startVisitorStatsRefreshTimer() {
+  void _startVisitorStatsTimer() {
     _visitorStatsTimer?.cancel();
 
     _visitorStatsTimer = Timer.periodic(
       const Duration(minutes: 1),
-      (_) => _loadDashboardVisitorStats(),
+      (_) => _loadVisitorStats(),
     );
   }
 
   // =========================
-  // تحميل بيانات لوحة التحكم
+  // تحميل البيانات
   // =========================
 
   Future<void> _init() async {
@@ -522,30 +518,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .eq('id', user.id)
             .maybeSingle();
 
-        _isCurrentUserAdmin =
+        _isAdmin =
             profile?['role'] == 'admin';
       }
     } catch (e) {
       debugPrint(
         'admin check error: $e',
       );
-      _isCurrentUserAdmin = false;
+      _isAdmin = false;
     }
 
     if (!mounted) return;
 
     setState(
-      () => _isCheckingAdmin = false,
+      () => _checkingAdmin = false,
     );
 
-    if (!_isCurrentUserAdmin) return;
+    if (!_isAdmin) return;
 
     await _loadCategories();
-    await _loadDashboardVisitorStats();
+    await _loadVisitorStats();
 
-    _startVisitorStatsRefreshTimer();
+    _startVisitorStatsTimer();
 
-    await _loadDashboardData(
+    await _loadAll(
       showSpinner: false,
     );
   }
@@ -571,7 +567,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         }
       }
 
-      _categoryNamesById = names;
+      _categoryNames = names;
     } catch (e) {
       debugPrint(
         'loadCategories error: $e',
@@ -579,38 +575,38 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  Future<void> _loadDashboardData({
+  Future<void> _loadAll({
     bool showSpinner = true,
   }) async {
     if (showSpinner && mounted) {
       setState(
-        () => _isLoadingDashboard = true,
+        () => _loading = true,
       );
     }
 
-    _dashboardLoadFailed = false;
+    _loadFailed = false;
 
     await Future.wait([
-      _loadPendingListings(),
-      _loadApprovedListings(reset: true),
-      _loadActivePromotions(),
-      _loadListingReports(),
+      _loadPending(),
+      _loadApproved(reset: true),
+      _loadPromotions(),
+      _loadReports(),
     ]);
 
     if (!mounted) return;
 
     setState(
-      () => _isLoadingDashboard = false,
+      () => _loading = false,
     );
 
-    if (_dashboardLoadFailed) {
+    if (_loadFailed) {
       _showSnack(
         'تعذر تحميل بعض البيانات، اسحب للتحديث',
       );
     }
   }
 
-  Future<void> _loadListingMetadata(
+  Future<void> _loadMeta(
     List<Map<String, dynamic>> listings,
   ) async {
     final listingIds = listings
@@ -627,12 +623,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         .toList();
 
     await Future.wait([
-      _loadListingImages(listingIds),
-      _loadListingSellerNames(sellerIds),
+      _loadImageUrls(listingIds),
+      _loadSellerNames(sellerIds),
     ]);
   }
 
-  Future<void> _loadListingImages(
+  Future<void> _loadImageUrls(
     List<int> listingIds,
   ) async {
     if (listingIds.isEmpty) return;
@@ -681,7 +677,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .add(url);
       }
 
-      _listingImageUrls.addAll(grouped);
+      _imageUrls.addAll(grouped);
     } catch (e) {
       debugPrint(
         'admin images error: $e',
@@ -689,7 +685,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  Future<void> _loadListingSellerNames(
+  Future<void> _loadSellerNames(
     List<String> sellerIds,
   ) async {
     if (sellerIds.isEmpty) return;
@@ -714,7 +710,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 '';
 
         if (name.isNotEmpty) {
-          _sellerNamesById[
+          _sellerNames[
               row['id'].toString()] = name;
         }
       }
@@ -725,7 +721,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  Future<void> _loadPendingListings() async {
+  Future<void> _loadPending() async {
     try {
       final response = await _supabase
           .from('listings')
@@ -741,18 +737,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         response,
       );
 
-      await _loadListingMetadata(rows);
+      await _loadMeta(rows);
 
       if (!mounted) return;
 
       setState(
-        () => _pendingListings = rows,
+        () => _pending = rows,
       );
     } catch (e) {
       debugPrint(
         'loadPending error: $e',
       );
-      _dashboardLoadFailed = true;
+      _loadFailed = true;
     }
   }
 
@@ -816,23 +812,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  Future<void> _loadApprovedListings({
+  Future<void> _loadApproved({
     bool reset = true,
   }) async {
     if (!reset &&
-        (_isLoadingMoreApproved ||
-            !_hasMoreApprovedListings)) {
+        (_approvedLoadingMore ||
+            !_approvedHasMore)) {
       return;
     }
 
     final page =
-        reset ? 0 : _approvedListingsPage;
+        reset ? 0 : _approvedPage;
 
-    final query = _approvedSearchQuery;
+    final query = _approvedQuery;
 
     if (!reset && mounted) {
       setState(
-        () => _isLoadingMoreApproved = true,
+        () => _approvedLoadingMore = true,
       );
     }
 
@@ -853,7 +849,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       }
 
       final from =
-          page * _approvedListingsPageSize;
+          page * _approvedPageSize;
 
       final response = await request
           .order(
@@ -862,7 +858,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           )
           .range(
             from,
-            from + _approvedListingsPageSize - 1,
+            from + _approvedPageSize - 1,
           );
 
       final rows =
@@ -872,41 +868,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       await Future.wait([
         _attachPromotions(rows),
-        _loadListingMetadata(rows),
+        _loadMeta(rows),
       ]);
 
       if (!mounted ||
-          query != _approvedSearchQuery) {
+          query != _approvedQuery) {
         return;
       }
 
       setState(() {
-        _approvedListings = reset
+        _approved = reset
             ? rows
             : [
-                ..._approvedListings,
+                ..._approved,
                 ...rows,
               ];
 
-        _approvedListingsPage =
+        _approvedPage =
             page + 1;
 
-        _hasMoreApprovedListings =
+        _approvedHasMore =
             rows.length ==
-                _approvedListingsPageSize;
+                _approvedPageSize;
 
-        _isLoadingMoreApproved = false;
+        _approvedLoadingMore = false;
       });
     } catch (e) {
       debugPrint(
         'loadApproved error: $e',
       );
 
-      _dashboardLoadFailed = true;
+      _loadFailed = true;
 
       if (mounted) {
         setState(
-          () => _isLoadingMoreApproved =
+          () => _approvedLoadingMore =
               false,
         );
       }
@@ -927,23 +923,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             value.trim();
 
         if (!mounted ||
-            query == _approvedSearchQuery) {
+            query == _approvedQuery) {
           return;
         }
 
         setState(
-          () => _approvedSearchQuery =
+          () => _approvedQuery =
               query,
         );
 
-        _loadApprovedListings(
+        _loadApproved(
           reset: true,
         );
       },
     );
   }
 
-  Future<void> _loadActivePromotions() async {
+  Future<void> _loadPromotions() async {
     try {
       final now =
           DateTime.now()
@@ -986,7 +982,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (ids.isEmpty) {
         if (mounted) {
           setState(
-            () => _activePromotions = [],
+            () => _promotions = [],
           );
         }
         return;
@@ -1041,22 +1037,22 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         items.add(item);
       }
 
-      await _loadListingMetadata(items);
+      await _loadMeta(items);
 
       if (!mounted) return;
 
       setState(
-        () => _activePromotions = items,
+        () => _promotions = items,
       );
     } catch (e) {
       debugPrint(
         'loadPromotions error: $e',
       );
-      _dashboardLoadFailed = true;
+      _loadFailed = true;
     }
   }
 
-  Future<void> _loadListingReports() async {
+  Future<void> _loadReports() async {
     try {
       final response = await _supabase
           .from('reports')
@@ -1116,7 +1112,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (grouped.isEmpty) {
         if (mounted) {
           setState(() {
-            _listingReportGroups = [];
+            _reportGroups = [];
             _reportsError = null;
           });
         }
@@ -1141,7 +1137,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             l['status'] == 'pending',
       ).toList();
 
-      await _loadListingMetadata(listings);
+      await _loadMeta(listings);
 
       final groups =
           <_ReportGroup>[];
@@ -1173,7 +1169,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (!mounted) return;
 
       setState(() {
-        _listingReportGroups = groups;
+        _reportGroups = groups;
         _reportsError = null;
       });
     } catch (e) {
@@ -1193,15 +1189,215 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   // =========================
-  // مراجعة الإعلانات
+  // المراجعة
   // =========================
+
+  String _displayDurationLabel(dynamic duration) {
+    switch (duration?.toString()) {
+      case 'day':
+        return 'يوم واحد';
+      case 'week':
+        return 'أسبوع واحد';
+      case 'month':
+        return 'شهر واحد';
+      case 'unlimited':
+        return 'غير محدود';
+      default:
+        return 'غير محددة';
+    }
+  }
+
+  DateTime _addCalendarMonth(DateTime date) {
+    final nextMonth = date.month == 12 ? 1 : date.month + 1;
+    final nextYear = date.month == 12 ? date.year + 1 : date.year;
+    final lastDayOfNextMonth =
+        DateTime(nextYear, nextMonth + 1, 0).day;
+
+    final day = date.day > lastDayOfNextMonth
+        ? lastDayOfNextMonth
+        : date.day;
+
+    return DateTime(
+      nextYear,
+      nextMonth,
+      day,
+      date.hour,
+      date.minute,
+      date.second,
+      date.millisecond,
+      date.microsecond,
+    );
+  }
 
   Future<void> _approve(
     Map<String, dynamic> listing,
   ) async {
+    final duration = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        Widget option({
+          required String value,
+          required String title,
+          required String subtitle,
+          required IconData icon,
+        }) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 9),
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 11,
+                ),
+                alignment: Alignment.centerRight,
+                side: BorderSide(
+                  color: AppColors.brand.withValues(alpha: 0.18),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () => Navigator.pop(dialogContext, value),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: AppDecorations.softCard(),
+                    child: Icon(
+                      icon,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_left_rounded,
+                    color: AppColors.brand,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            title: Row(
+              children: [
+                const Icon(
+                  Icons.schedule_outlined,
+                  color: AppColors.brand,
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text('مدة عرض الإعلان'),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: AppDecorations.softCard(),
+                  child: Text(
+                    listing['title']?.toString() ?? 'بدون عنوان',
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'اختر المدة التي سيبقى فيها الإعلان منشوراً:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                option(
+                  value: 'day',
+                  title: 'يوم واحد',
+                  subtitle: 'ينتهي بعد 24 ساعة من الموافقة',
+                  icon: Icons.today_outlined,
+                ),
+                option(
+                  value: 'week',
+                  title: 'أسبوع واحد',
+                  subtitle: 'ينتهي بعد 7 أيام من الموافقة',
+                  icon: Icons.date_range_outlined,
+                ),
+                option(
+                  value: 'month',
+                  title: 'شهر واحد',
+                  subtitle: 'ينتهي بعد شهر تقويمي من الموافقة',
+                  icon: Icons.calendar_month_outlined,
+                ),
+                option(
+                  value: 'unlimited',
+                  title: 'غير محدود',
+                  subtitle: 'يبقى منشوراً حتى يقوم الأدمن بإخفائه',
+                  icon: Icons.all_inclusive_rounded,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('إلغاء'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (duration == null || !mounted) {
+      return;
+    }
+
     await _moderate(
       listing,
       'approved',
+      displayDuration: duration,
     );
   }
 
@@ -1235,71 +1431,76 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     Map<String, dynamic> listing,
     String status, {
     String? reason,
+    String? displayDuration,
   }) async {
-    final id =
-        listing['id'];
+    final id = listing['id'];
 
-    if (id is! int ||
-        _processingListingIds.contains(id)) {
+    if (id is! int || _busyIds.contains(id)) {
       return;
     }
 
-    final hasReasonColumn =
-        listing.containsKey(
-      'rejection_reason',
-    );
+    final hasReasonColumn = listing.containsKey('rejection_reason');
+    final cleanReason = reason?.trim() ?? '';
 
-    final cleanReason =
-        reason?.trim() ?? '';
-
-    final payload =
-        <String, dynamic>{
+    final payload = <String, dynamic>{
       'status': status,
     };
 
-    if (hasReasonColumn) {
+    if (status == 'approved') {
+      if (displayDuration == null) {
+        _showSnack('يجب اختيار مدة عرض الإعلان');
+        return;
+      }
+
+      final start = DateTime.now().toUtc();
+      DateTime? expires;
+
+      switch (displayDuration) {
+        case 'day':
+          expires = start.add(const Duration(days: 1));
+          break;
+        case 'week':
+          expires = start.add(const Duration(days: 7));
+          break;
+        case 'month':
+          expires = _addCalendarMonth(start);
+          break;
+        case 'unlimited':
+          expires = null;
+          break;
+      }
+
+      payload['display_duration'] = displayDuration;
+      payload['display_started_at'] = start.toIso8601String();
+      payload['display_expires_at'] = expires?.toIso8601String();
+
+      if (hasReasonColumn) {
+        payload['rejection_reason'] = null;
+      }
+    } else if (hasReasonColumn) {
       payload['rejection_reason'] =
-          status == 'rejected' &&
-                  cleanReason.isNotEmpty
+          status == 'rejected' && cleanReason.isNotEmpty
               ? cleanReason
               : null;
     }
 
-    setState(
-      () => _processingListingIds.add(id),
-    );
+    setState(() => _busyIds.add(id));
 
     try {
       await _supabase
           .from('listings')
           .update(payload)
-          .eq(
-            'id',
-            id,
-          );
+          .eq('id', id);
 
       if (status == 'rejected') {
         try {
           await _supabase
               .from('reports')
-              .update(
-            {'status': 'resolved'},
-          )
-              .eq(
-                'listing_id',
-                id,
-              )
-              .inFilter(
-                'status',
-                [
-                  'pending',
-                  'reviewing',
-                ],
-              );
+              .update({'status': 'resolved'})
+              .eq('listing_id', id)
+              .inFilter('status', ['pending', 'reviewing']);
         } catch (e) {
-          debugPrint(
-            'resolve reports error: $e',
-          );
+          debugPrint('resolve reports error: $e');
         }
       }
 
@@ -1307,46 +1508,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       final reasonLost =
           status == 'rejected' &&
-              cleanReason.isNotEmpty &&
-              !hasReasonColumn;
+          cleanReason.isNotEmpty &&
+          !hasReasonColumn;
 
-      final message =
-          status == 'approved'
-              ? 'تمت الموافقة على الإعلان'
-              : reasonLost
-                  ? 'تم رفض الإعلان '
-                      '(لم يُحفظ السبب: أضف عمود rejection_reason)'
-                  : 'تم رفض الإعلان';
+      final message = status == 'approved'
+          ? 'تمت الموافقة على الإعلان لمدة ${_displayDurationLabel(displayDuration)}'
+          : reasonLost
+              ? 'تم رفض الإعلان (لم يُحفظ السبب: أضف عمود rejection_reason)'
+              : 'تم رفض الإعلان';
 
       _showSnack(
         message,
         seconds: 7,
         action: SnackBarAction(
           label: 'تراجع',
-          onPressed: () =>
-              _undoModeration(
-            id,
-            hasReasonColumn,
-          ),
+          onPressed: () => _undoModeration(id, hasReasonColumn),
         ),
       );
 
-      await _loadDashboardData(
-        showSpinner: false,
-      );
+      await _loadAll(showSpinner: false);
     } catch (e) {
-      debugPrint(
-        'moderate error: $e',
-      );
-
-      _showSnack(
-        'تعذر تحديث حالة الإعلان',
-      );
+      debugPrint('moderate error: $e');
+      _showSnack('تعذر تحديث حالة الإعلان');
     } finally {
       if (mounted) {
-        setState(
-          () => _processingListingIds.remove(id),
-        );
+        setState(() => _busyIds.remove(id));
       }
     }
   }
@@ -1360,33 +1546,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           .from('listings')
           .update({
         'status': 'pending',
-        if (hasReasonColumn)
-          'rejection_reason': null,
-      }).eq(
-        'id',
-        id,
-      );
+        'display_duration': null,
+        'display_started_at': null,
+        'display_expires_at': null,
+        if (hasReasonColumn) 'rejection_reason': null,
+      }).eq('id', id);
 
-      _showSnack(
-        'أُعيد الإعلان إلى قيد المراجعة',
-      );
+      _showSnack('أُعيد الإعلان إلى قيد المراجعة');
 
-      await _loadDashboardData(
-        showSpinner: false,
-      );
+      await _loadAll(showSpinner: false);
     } catch (e) {
-      debugPrint(
-        'undoModeration error: $e',
-      );
-
-      _showSnack(
-        'تعذر التراجع',
-      );
+      debugPrint('undoModeration error: $e');
+      _showSnack('تعذر التراجع');
     }
   }
 
   // =========================
-  // إدارة البلاغات
+  // البلاغات
   // =========================
 
   Future<void> _dismissReports(
@@ -1428,7 +1604,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'تم تجاهل البلاغات',
       );
 
-      await _loadListingReports();
+      await _loadReports();
     } catch (e) {
       debugPrint(
         'dismissReports error: $e',
@@ -1441,7 +1617,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   // =========================
-  // إدارة الإعلانات المميزة
+  // الإعلانات التجارية
   // =========================
 
   Future<void> _promote(
@@ -1624,7 +1800,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'تم تفعيل الإعلان التجاري لمدة $days يوم',
       );
 
-      await _loadDashboardData(
+      await _loadAll(
         showSpinner: false,
       );
     } catch (e) {
@@ -1675,7 +1851,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         'تم إيقاف الإعلان التجاري',
       );
 
-      await _loadDashboardData(
+      await _loadAll(
         showSpinner: false,
       );
     } catch (e) {
@@ -1690,7 +1866,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   // =========================
-  // مكونات واجهة الإعلانات
+  // مكونات الواجهة
   // =========================
 
   Widget _thumb(
@@ -1808,7 +1984,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildListingCard(
+  Widget _buildCard(
     Map<String, dynamic> listing, {
     required List<Widget> actions,
     bool showAllImages = false,
@@ -1818,13 +1994,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         listing['id'];
 
     final images = id is int
-        ? (_listingImageUrls[id] ??
+        ? (_imageUrls[id] ??
             const <String>[])
         : const <String>[];
 
     final busy =
         id is int &&
-            _processingListingIds.contains(id);
+            _busyIds.contains(id);
 
     final title =
         listing['title']
@@ -1851,7 +2027,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             '';
 
     final seller =
-        _sellerNamesById[
+        _sellerNames[
             listing['seller_id']
                 ?.toString()];
 
@@ -1860,7 +2036,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     final category =
         categoryId is int
-            ? _categoryNamesById[
+            ? _categoryNames[
                 categoryId]
             : null;
 
@@ -1903,7 +2079,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         onTap: busy
             ? null
             : () =>
-                _openListingDetails(
+                _openListing(
               listing,
             ),
         child: Column(
@@ -2236,7 +2412,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       style:
           _compactOutlinedStyle,
       onPressed: () =>
-          _openListingDetails(
+          _openListing(
         listing,
       ),
       icon: const Icon(
@@ -2248,7 +2424,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildPendingListingCard(
+  Widget _buildPendingCard(
     Map<String, dynamic> listing,
   ) {
     final id =
@@ -2256,9 +2432,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     final busy =
         id is int &&
-            _processingListingIds.contains(id);
+            _busyIds.contains(id);
 
-    return _buildListingCard(
+    return _buildCard(
       listing,
       showAllImages: true,
       actions: [
@@ -2319,160 +2495,169 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildApprovedListingCard(
+  Widget _buildApprovedCard(
     Map<String, dynamic> listing,
   ) {
-    final id =
-        listing['id'];
+    final id = listing['id'];
+    final busy = id is int && _busyIds.contains(id);
+    final active = _isPromotionActive(listing);
+    final hasPromotion = _hasPromotion(listing);
 
-    final busy =
-        id is int &&
-            _processingListingIds.contains(id);
+    final duration = listing['display_duration']?.toString();
+    final startedAt = listing['display_started_at'];
+    final expiresAt = listing['display_expires_at'];
 
-    final active =
-        _isPromotionActive(
-      listing,
-    );
+    Widget? displayFooter;
 
-    final hasPromotion =
-        _hasPromotion(
-      listing,
-    );
-
-    return _buildListingCard(
-      listing,
-      footer: active
-          ? Container(
-              padding:
-                  const EdgeInsets
-                      .symmetric(
-                horizontal: 11,
-                vertical: 9,
-              ),
-              decoration:
-                  AppDecorations
-                      .softCard(),
+    if (duration == 'unlimited') {
+      displayFooter = Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 11,
+          vertical: 9,
+        ),
+        decoration: AppDecorations.softCard(),
+        child: const Row(
+          children: [
+            Icon(
+              Icons.all_inclusive_rounded,
+              size: 19,
+              color: AppColors.brand,
+            ),
+            SizedBox(width: 7),
+            Expanded(
               child: Text(
-                'ينتهي الترويج: '
-                '${_formatDate(listing['promotion_end_at'])} '
-                '(${_remaining(listing['promotion_end_at'])})',
-                style:
-                    const TextStyle(
+                'مدة العرض: غير محدود',
+                style: TextStyle(
                   fontSize: 12.5,
-                  fontWeight:
-                      FontWeight.w700,
-                  color:
-                      AppColors.ink,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
                 ),
               ),
-            )
-          : null,
+            ),
+          ],
+        ),
+      );
+    } else if (duration != null && expiresAt != null) {
+      displayFooter = Container(
+        padding: const EdgeInsets.all(11),
+        decoration: AppDecorations.softCard(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'مدة العرض: ${_displayDurationLabel(duration)}',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: AppColors.ink,
+              ),
+            ),
+            if (startedAt != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'بدأ العرض: ${_formatDate(startedAt)}',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            const SizedBox(height: 4),
+            Text(
+              'ينتهي: ${_formatDate(expiresAt)} (${_remaining(expiresAt)})',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return _buildCard(
+      listing,
+      footer: displayFooter ??
+          (active
+              ? Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 9,
+                  ),
+                  decoration: AppDecorations.softCard(),
+                  child: Text(
+                    'ينتهي الترويج: ${_formatDate(listing['promotion_end_at'])} (${_remaining(listing['promotion_end_at'])})',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                )
+              : null),
       actions: [
         _viewButton(listing),
         if (active)
           FilledButton.icon(
-            style:
-                _compactStyle
-                    .copyWith(
-              backgroundColor:
-                  WidgetStateProperty
-                      .all(
+            style: _compactStyle.copyWith(
+              backgroundColor: WidgetStateProperty.all(
                 AppColors.orange,
               ),
             ),
-            onPressed: () =>
-                _stopPromotion(
-              listing,
-            ),
-            icon:
-                const Icon(
-              Icons
-                  .stop_circle_outlined,
+            onPressed: () => _stopPromotion(listing),
+            icon: const Icon(
+              Icons.stop_circle_outlined,
               size: 18,
             ),
-            label:
-                const Text(
-              'إيقاف الترويج',
-            ),
+            label: const Text('إيقاف الترويج'),
           )
         else
           OutlinedButton.icon(
-            style:
-                _compactOutlinedStyle
-                    .copyWith(
-              foregroundColor:
-                  WidgetStateProperty
-                      .all(
+            style: _compactOutlinedStyle.copyWith(
+              foregroundColor: WidgetStateProperty.all(
                 AppColors.orange,
               ),
-              side:
-                  WidgetStateProperty
-                      .all(
-                const BorderSide(
-                  color:
-                      AppColors.orange,
-                ),
+              side: WidgetStateProperty.all(
+                const BorderSide(color: AppColors.orange),
               ),
             ),
-            onPressed: () =>
-                _promote(
-              listing,
-            ),
+            onPressed: () => _promote(listing),
             icon: Icon(
               hasPromotion
                   ? Icons.refresh
-                  : Icons
-                      .campaign_outlined,
+                  : Icons.campaign_outlined,
               size: 18,
             ),
             label: Text(
-              hasPromotion
-                  ? 'إعادة التفعيل'
-                  : 'إعلان تجاري',
+              hasPromotion ? 'إعادة التفعيل' : 'إعلان تجاري',
             ),
           ),
         OutlinedButton.icon(
-          style:
-              _compactOutlinedStyle
-                  .copyWith(
-            foregroundColor:
-                WidgetStateProperty
-                    .all(
+          style: _compactOutlinedStyle.copyWith(
+            foregroundColor: WidgetStateProperty.all(
               Colors.red.shade700,
             ),
-            side:
-                WidgetStateProperty
-                    .all(
-              BorderSide(
-                color:
-                    Colors.red.shade300,
-              ),
+            side: WidgetStateProperty.all(
+              BorderSide(color: Colors.red.shade300),
             ),
           ),
-          onPressed:
-              busy
-                  ? null
-                  : () =>
-                      _reject(
-                    listing,
-                  ),
-          icon:
-              const Icon(
-            Icons
-                .visibility_off_outlined,
+          onPressed: busy ? null : () => _reject(listing),
+          icon: const Icon(
+            Icons.visibility_off_outlined,
             size: 18,
           ),
-          label:
-              const Text('إخفاء'),
+          label: const Text('إخفاء'),
         ),
       ],
     );
   }
 
-  Widget _buildPromotionListingCard(
+  Widget _buildPromotionCard(
     Map<String, dynamic> listing,
   ) {
-    return _buildListingCard(
+    return _buildCard(
       listing,
       footer: Container(
         padding:
@@ -2556,7 +2741,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildListingReportCard(
+  Widget _buildReportCard(
     _ReportGroup group,
   ) {
     final listing =
@@ -2567,7 +2752,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     final busy =
         id is int &&
-            _processingListingIds.contains(id);
+            _busyIds.contains(id);
 
     final shown =
         group.reports
@@ -2595,7 +2780,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             .take(3)
             .join(' | ');
 
-    return _buildListingCard(
+    return _buildCard(
       listing,
       footer: Container(
         padding:
@@ -2780,15 +2965,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Widget _buildPendingListingsTab() {
+  Widget _buildPendingTab() {
     return RefreshIndicator(
       color:
           AppColors.brand,
       onRefresh: () =>
-          _loadDashboardData(
+          _loadAll(
         showSpinner: false,
       ),
-      child: _pendingListings.isEmpty
+      child: _pending.isEmpty
           ? _emptyState(
               Icons
                   .check_circle_outline,
@@ -2844,8 +3029,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     ],
                   ),
                 ),
-                ..._pendingListings.map(
-                  _buildPendingListingCard,
+                ..._pending.map(
+                  _buildPendingCard,
                 ),
               ],
             ),
@@ -2858,7 +3043,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         color:
             AppColors.brand,
         onRefresh: () =>
-            _loadDashboardData(
+            _loadAll(
           showSpinner: false,
         ),
         child: ListView(
@@ -2926,10 +3111,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       color:
           AppColors.brand,
       onRefresh: () =>
-          _loadDashboardData(
+          _loadAll(
         showSpinner: false,
       ),
-      child: _listingReportGroups.isEmpty
+      child: _reportGroups.isEmpty
           ? _emptyState(
               Icons.flag_outlined,
               'لا توجد بلاغات حالياً',
@@ -2945,14 +3130,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 24,
               ),
               children:
-                  _listingReportGroups.map(
-                _buildListingReportCard,
+                  _reportGroups.map(
+                _buildReportCard,
               ).toList(),
             ),
     );
   }
 
-  Widget _buildApprovedListingsTab() {
+  Widget _buildApprovedTab() {
     return Column(
       children: [
         Padding(
@@ -3068,15 +3253,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             color:
                 AppColors.brand,
             onRefresh: () =>
-                _loadDashboardData(
+                _loadAll(
               showSpinner: false,
             ),
             child:
-                _approvedListings.isEmpty
+                _approved.isEmpty
                     ? _emptyState(
                         Icons
                             .search_off_outlined,
-                        _approvedSearchQuery
+                        _approvedQuery
                                 .isEmpty
                             ? 'لا توجد إعلانات معتمدة'
                             : 'لا نتائج للبحث',
@@ -3092,10 +3277,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           24,
                         ),
                         children: [
-                          ..._approvedListings.map(
-                            _buildApprovedListingCard,
+                          ..._approved.map(
+                            _buildApprovedCard,
                           ),
-                          if (_hasMoreApprovedListings)
+                          if (_approvedHasMore)
                             Padding(
                               padding:
                                   const EdgeInsets
@@ -3106,7 +3291,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               child:
                                   Center(
                                 child:
-                                    _isLoadingMoreApproved
+                                    _approvedLoadingMore
                                         ? const CircularProgressIndicator(
                                             color:
                                                 AppColors.brand,
@@ -3117,7 +3302,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                                 _compactOutlinedStyle,
                                             onPressed:
                                                 () =>
-                                                    _loadApprovedListings(
+                                                    _loadApproved(
                                               reset:
                                                   false,
                                             ),
@@ -3146,10 +3331,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       color:
           AppColors.brand,
       onRefresh: () =>
-          _loadDashboardData(
+          _loadAll(
         showSpinner: false,
       ),
-      child: _activePromotions.isEmpty
+      child: _promotions.isEmpty
           ? _emptyState(
               Icons
                   .campaign_outlined,
@@ -3166,16 +3351,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 24,
               ),
               children:
-                  _activePromotions.map(
-                _buildPromotionListingCard,
+                  _promotions.map(
+                _buildPromotionCard,
               ).toList(),
             ),
     );
   }
-
-  // =========================
-  // أقسام لوحة التحكم والتبويبات
-  // =========================
 
   Widget _buildLocked() {
     return Center(
@@ -3256,7 +3437,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   // =========================
-  // بناء الصفحة
+  // Build
   // =========================
 
   @override
@@ -3264,13 +3445,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     BuildContext context,
   ) {
     final showTabs =
-        !_isCheckingAdmin &&
-            _isCurrentUserAdmin;
+        !_checkingAdmin &&
+            _isAdmin;
 
     final Widget body;
 
-    if (_isCheckingAdmin ||
-        (_isCurrentUserAdmin && _isLoadingDashboard)) {
+    if (_checkingAdmin ||
+        (_isAdmin && _loading)) {
       body =
           const Center(
         child:
@@ -3279,29 +3460,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               AppColors.brand,
         ),
       );
-    } else if (!_isCurrentUserAdmin) {
+    } else if (!_isAdmin) {
       body =
           _buildLocked();
     } else {
       final tabs =
           TabBarView(
         children: [
-          _buildPendingListingsTab(),
+          _buildPendingTab(),
           _buildReportsTab(),
-          _buildApprovedListingsTab(),
+          _buildApprovedTab(),
           _buildPromotionsTab(),
         ],
       );
 
       body = Column(
         children: [
-          _buildVisitorStatisticsCard(),
+          _buildVisitorStatsCard(),
           Expanded(
             child: tabs,
           ),
         ],
       );
     }
+
+    final formattedTotalVisits =
+        NumberFormat(
+      '#,##0',
+      'en',
+    ).format(_totalVisits);
 
     return Directionality(
       textDirection:
@@ -3318,12 +3505,75 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             foregroundColor:
                 Colors.white,
             elevation: 0,
-            title: const Text(
-              'لوحة التحكم',
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w900,
-              ),
+            title: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              mainAxisSize:
+                  MainAxisSize.min,
+              children: [
+                const Text(
+                  'لوحة تحكم الأدمن',
+                  style:
+                      TextStyle(
+                    fontSize: 17,
+                    fontWeight:
+                        FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(
+                  height: 2,
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 2,
+                  children: [
+                    Text(
+                      '👤 $_anonymousVisitors زائر',
+                      style:
+                          const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight:
+                            FontWeight.w700,
+                        color:
+                            Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '👥 $_currentMembers عضو',
+                      style:
+                          const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight:
+                            FontWeight.w700,
+                        color:
+                            Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '🟢 $_currentTotal متصل',
+                      style:
+                          const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight:
+                            FontWeight.w700,
+                        color:
+                            Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '📊 $formattedTotalVisits زيارة',
+                      style:
+                          const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight:
+                            FontWeight.w600,
+                        color:
+                            Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
             centerTitle: false,
             actions: [
@@ -3331,7 +3581,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 tooltip:
                     'تحديث إحصائيات الزيارات',
                 icon:
-                    _isLoadingVisitorStats
+                    _loadingVisitorStats
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -3347,9 +3597,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             Icons.refresh,
                           ),
                 onPressed:
-                    _isLoadingVisitorStats
+                    _loadingVisitorStats
                         ? null
-                        : _loadDashboardVisitorStats,
+                        : _loadVisitorStats,
               ),
               IconButton(
                 tooltip:
@@ -3442,14 +3692,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         text:
                             _tabLabel(
                           'المراجعة',
-                          _pendingListings.length,
+                          _pending.length,
                         ),
                       ),
                       Tab(
                         text:
                             _tabLabel(
                           'البلاغات',
-                          _listingReportGroups.length,
+                          _reportGroups.length,
                         ),
                       ),
                       const Tab(
@@ -3460,7 +3710,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         text:
                             _tabLabel(
                           'التجارية',
-                          _activePromotions.length,
+                          _promotions.length,
                         ),
                       ),
                     ],
