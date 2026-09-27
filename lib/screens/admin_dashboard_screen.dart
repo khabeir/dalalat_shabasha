@@ -371,6 +371,45 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return 'متبقي ${diff.inMinutes} دقيقة';
   }
 
+  String _displayDurationLabel(dynamic duration) {
+    switch (duration?.toString()) {
+      case 'day':
+        return 'يوم واحد';
+      case 'week':
+        return 'أسبوع واحد';
+      case 'month':
+        return 'شهر واحد';
+      case 'unlimited':
+        return 'غير محدود';
+      default:
+        return 'غير محددة';
+    }
+  }
+
+  DateTime _addCalendarMonth(DateTime date) {
+    final nextMonth = date.month == 12 ? 1 : date.month + 1;
+    final nextYear = date.month == 12 ? date.year + 1 : date.year;
+
+    final lastDayOfNextMonth =
+        DateTime(nextYear, nextMonth + 1, 0).day;
+
+    final day =
+        date.day > lastDayOfNextMonth
+            ? lastDayOfNextMonth
+            : date.day;
+
+    return DateTime(
+      nextYear,
+      nextMonth,
+      day,
+      date.hour,
+      date.minute,
+      date.second,
+      date.millisecond,
+      date.microsecond,
+    );
+  }
+
   String _priceText(Map<String, dynamic> listing) {
     final price = listing['price'];
     final priceType =
@@ -1199,9 +1238,177 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Future<void> _approve(
     Map<String, dynamic> listing,
   ) async {
+    final duration = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        Widget option({
+          required String value,
+          required String title,
+          required String subtitle,
+          required IconData icon,
+        }) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 9),
+            width: double.infinity,
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 11,
+                ),
+                alignment: Alignment.centerRight,
+                side: BorderSide(
+                  color: AppColors.brand.withValues(alpha: 0.18),
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              onPressed: () => Navigator.pop(
+                dialogContext,
+                value,
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: AppDecorations.softCard(),
+                    child: Icon(
+                      icon,
+                      color: AppColors.brand,
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: Colors.grey.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_left_rounded,
+                    color: AppColors.brand,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return Directionality(
+          textDirection: TextDirection.rtl,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
+            title: Row(
+              children: [
+                const Icon(
+                  Icons.schedule_outlined,
+                  color: AppColors.brand,
+                ),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'مدة عرض الإعلان',
+                  ),
+                ),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: AppDecorations.softCard(),
+                  child: Text(
+                    listing['title']?.toString() ?? 'بدون عنوان',
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    'اختر المدة التي سيبقى فيها الإعلان منشوراً:',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                option(
+                  value: 'day',
+                  title: 'يوم واحد',
+                  subtitle: 'ينتهي بعد 24 ساعة من الموافقة',
+                  icon: Icons.today_outlined,
+                ),
+                option(
+                  value: 'week',
+                  title: 'أسبوع واحد',
+                  subtitle: 'ينتهي بعد 7 أيام من الموافقة',
+                  icon: Icons.date_range_outlined,
+                ),
+                option(
+                  value: 'month',
+                  title: 'شهر واحد',
+                  subtitle: 'ينتهي بعد شهر تقويمي من الموافقة',
+                  icon: Icons.calendar_month_outlined,
+                ),
+                option(
+                  value: 'unlimited',
+                  title: 'غير محدود',
+                  subtitle: 'يبقى منشوراً حتى يقوم الأدمن بإخفائه',
+                  icon: Icons.all_inclusive_rounded,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('إلغاء'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (duration == null || !mounted) {
+      return;
+    }
+
     await _moderate(
       listing,
       'approved',
+      displayDuration: duration,
     );
   }
 
@@ -1235,9 +1442,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     Map<String, dynamic> listing,
     String status, {
     String? reason,
+    String? displayDuration,
   }) async {
-    final id =
-        listing['id'];
+    final id = listing['id'];
 
     if (id is! int ||
         _processingListingIds.contains(id)) {
@@ -1245,17 +1452,60 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
 
     final hasReasonColumn =
-        listing.containsKey(
-      'rejection_reason',
-    );
+        listing.containsKey('rejection_reason');
 
-    final cleanReason =
-        reason?.trim() ?? '';
+    final cleanReason = reason?.trim() ?? '';
 
-    final payload =
-        <String, dynamic>{
+    final payload = <String, dynamic>{
       'status': status,
     };
+
+    if (status == 'approved') {
+      final duration = displayDuration;
+
+      if (duration == null) {
+        _showSnack(
+          'يجب اختيار مدة عرض الإعلان',
+        );
+        return;
+      }
+
+      final start = DateTime.now().toUtc();
+
+      DateTime? expires;
+
+      switch (duration) {
+        case 'day':
+          expires = start.add(
+            const Duration(days: 1),
+          );
+          break;
+
+        case 'week':
+          expires = start.add(
+            const Duration(days: 7),
+          );
+          break;
+
+        case 'month':
+          expires = _addCalendarMonth(start);
+          break;
+
+        case 'unlimited':
+          expires = null;
+          break;
+      }
+
+      payload['display_duration'] = duration;
+      payload['display_started_at'] =
+          start.toIso8601String();
+      payload['display_expires_at'] =
+          expires?.toIso8601String();
+
+      if (hasReasonColumn) {
+        payload['rejection_reason'] = null;
+      }
+    }
 
     if (hasReasonColumn) {
       payload['rejection_reason'] =
@@ -1310,13 +1560,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               cleanReason.isNotEmpty &&
               !hasReasonColumn;
 
-      final message =
-          status == 'approved'
-              ? 'تمت الموافقة على الإعلان'
-              : reasonLost
-                  ? 'تم رفض الإعلان '
-                      '(لم يُحفظ السبب: أضف عمود rejection_reason)'
-                  : 'تم رفض الإعلان';
+      final message = status == 'approved'
+          ? 'تمت الموافقة على الإعلان لمدة ${_displayDurationLabel(displayDuration)}'
+          : reasonLost
+              ? 'تم رفض الإعلان '
+                  '(لم يُحفظ السبب: أضف عمود rejection_reason)'
+              : 'تم رفض الإعلان';
 
       _showSnack(
         message,
@@ -1360,6 +1609,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           .from('listings')
           .update({
         'status': 'pending',
+        'display_duration': null,
+        'display_started_at': null,
+        'display_expires_at': null,
         if (hasReasonColumn)
           'rejection_reason': null,
       }).eq(
@@ -2322,51 +2574,117 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget _buildApprovedListingCard(
     Map<String, dynamic> listing,
   ) {
-    final id =
-        listing['id'];
+    final id = listing['id'];
 
     final busy =
         id is int &&
-            _processingListingIds.contains(id);
+        _processingListingIds.contains(id);
 
-    final active =
-        _isPromotionActive(
-      listing,
-    );
+    final active = _isPromotionActive(listing);
 
-    final hasPromotion =
-        _hasPromotion(
-      listing,
-    );
+    final hasPromotion = _hasPromotion(listing);
+
+    final duration =
+        listing['display_duration']?.toString();
+
+    final startedAt = listing['display_started_at'];
+
+    final expiresAt = listing['display_expires_at'];
+
+    Widget? displayFooter;
+
+    if (duration == 'unlimited') {
+      displayFooter = Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 11,
+          vertical: 9,
+        ),
+        decoration: AppDecorations.softCard(),
+        child: const Row(
+          children: [
+            Icon(
+              Icons.all_inclusive_rounded,
+              size: 19,
+              color: AppColors.brand,
+            ),
+            SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                'مدة العرض: غير محدود',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (duration != null && expiresAt != null) {
+      displayFooter = Container(
+        padding: const EdgeInsets.all(11),
+        decoration: AppDecorations.softCard(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'مدة العرض: ${_displayDurationLabel(duration)}',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: AppColors.ink,
+              ),
+            ),
+            if (startedAt != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                'بدأ العرض: ${_formatDate(startedAt)}',
+                style: TextStyle(
+                  fontSize: 11.5,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+            const SizedBox(height: 4),
+            Text(
+              'ينتهي: ${_formatDate(expiresAt)} '
+              '(${_remaining(expiresAt)})',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.ink,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return _buildListingCard(
       listing,
-      footer: active
-          ? Container(
-              padding:
-                  const EdgeInsets
-                      .symmetric(
-                horizontal: 11,
-                vertical: 9,
-              ),
-              decoration:
-                  AppDecorations
-                      .softCard(),
-              child: Text(
-                'ينتهي الترويج: '
-                '${_formatDate(listing['promotion_end_at'])} '
-                '(${_remaining(listing['promotion_end_at'])})',
-                style:
-                    const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight:
-                      FontWeight.w700,
-                  color:
-                      AppColors.ink,
-                ),
-              ),
-            )
-          : null,
+      footer: displayFooter ??
+          (active
+              ? Container(
+                  padding:
+                      const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 9,
+                  ),
+                  decoration: AppDecorations.softCard(),
+                  child: Text(
+                    'ينتهي الترويج: '
+                    '${_formatDate(listing['promotion_end_at'])} '
+                    '(${_remaining(listing['promotion_end_at'])})',
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                )
+              : null),
       actions: [
         _viewButton(listing),
         if (active)
