@@ -29,6 +29,12 @@ class _ReportGroup {
       reports.map((report) => report['reporter_id']).toSet().length;
 }
 
+// Alias used by HomeScreen.
+// The dashboard implementation remains AdminListingsScreen.
+class AdminDashboardScreen extends AdminListingsScreen {
+  const AdminDashboardScreen({super.key});
+}
+
 class AdminListingsScreen extends StatefulWidget {
   const AdminListingsScreen({super.key});
 
