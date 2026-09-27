@@ -603,183 +603,86 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // زخارف الهيدر
+  // الهوية البصرية للهيدر
   //
-  // لا توجد صورة خارجية.
-  // التصميم يعتمد على نفس هوية البنر الرئيسي:
-  // البنفسجي + الذهبي + الأشكال الهندسية الشفافة.
-  // ============================================================
-
-  Widget _buildHeaderDecorations() {
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          // دائرة ذهبية كبيرة في أعلى اليمين.
-          Positioned(
-            top: -75,
-            right: -45,
-            child: Container(
-              width: 175,
-              height: 175,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Brand.gold.withValues(
-                  alpha: 0.20,
-                ),
-              ),
-            ),
-          ),
-
-          // دائرة بنفسجية فاتحة في أسفل اليسار.
-          Positioned(
-            bottom: -95,
-            left: -55,
-            child: Container(
-              width: 210,
-              height: 210,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(
-                  alpha: 0.07,
-                ),
-              ),
-            ),
-          ),
-
-          // حلقة زخرفية.
-          Positioned(
-            top: 48,
-            left: -30,
-            child: Container(
-              width: 105,
-              height: 105,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: Brand.gold.withValues(
-                    alpha: 0.20,
-                  ),
-                  width: 2,
-                ),
-              ),
-            ),
-          ),
-
-          // شريط قطري خفيف.
-          Positioned(
-            top: 88,
-            right: -35,
-            child: Transform.rotate(
-              angle: -0.28,
-              child: Container(
-                width: 190,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(
-                    alpha: 0.055,
-                  ),
-                  borderRadius:
-                      BorderRadius.circular(20),
-                ),
-              ),
-            ),
-          ),
-
-          // نقاط زخرفية.
-          Positioned(
-            top: 38,
-            right: 68,
-            child: _buildHeaderDot(7),
-          ),
-          Positioned(
-            top: 65,
-            right: 45,
-            child: _buildHeaderDot(4),
-          ),
-          Positioned(
-            bottom: 42,
-            right: 30,
-            child: _buildHeaderDot(5),
-          ),
-          Positioned(
-            bottom: 60,
-            right: 52,
-            child: _buildHeaderDot(3),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeaderDot(double size) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: Brand.gold.withValues(
-          alpha: 0.75,
-        ),
-      ),
-    );
-  }
-
-  // ============================================================
-  // الترويسة
+  // الهيدر يعتمد على خلفية BrandHeaderBackground نفسها المستخدمة
+  // في هوية التطبيق، بدون صور خارجية أو زخارف عشوائية.
   // ============================================================
 
   Widget _buildHeader() {
-    return Stack(
-      children: [
-        _buildHeaderDecorations(),
-
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 22,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 24,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // الشعار داخل مساحة شفافة بسيطة حتى يبقى واضحاً فوق الخلفية.
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 10,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.14),
+              ),
+            ),
+            child: const BrandWordmark(
+              logoSize: 58,
+              titleSize: 25,
+            ),
           ),
-          child: Column(
-            children: [
-              const BrandWordmark(
-                logoSize: 62,
-                titleSize: 26,
-              ),
 
-              const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-              AnimatedSwitcher(
-                duration:
-                    const Duration(milliseconds: 220),
-                child: Text(
-                  _isLogin
-                      ? 'مرحباً بك، سجّل الدخول للمتابعة'
-                      : 'أنشئ حسابك وابدأ البيع والشراء',
-                  key: ValueKey(_isLogin),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white,
-                    height: 1.5,
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 14),
-
-              // خط زخرفي صغير بنفس لون الهوية.
-              Container(
-                width: 54,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Brand.gold,
-                  borderRadius:
-                      BorderRadius.circular(20),
-                ),
-              ),
-            ],
+          // وصف قصير ثابت للعلامة بدلاً من الزخارف.
+          const Text(
+            'سوقك المحلي في شبشة',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14.5,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+              height: 1.4,
+            ),
           ),
-        ),
-      ],
+
+          const SizedBox(height: 8),
+
+          // حالة الشاشة تتغير مع الانتقال بين الدخول والتسجيل.
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: Text(
+              _isLogin
+                  ? 'مرحباً بك، سجّل الدخول للمتابعة'
+                  : 'أنشئ حسابك وابدأ البيع والشراء',
+              key: ValueKey(_isLogin),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+                color: Colors.white.withValues(alpha: 0.88),
+                height: 1.5,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // اللمسة الذهبية الخاصة بالهوية.
+          Container(
+            width: 46,
+            height: 3,
+            decoration: BoxDecoration(
+              color: Brand.gold,
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1257,7 +1160,7 @@ class _AuthScreenState extends State<AuthScreen> {
             // ======================================================
 
             Positioned(
-              top: topPadding + 4,
+              top: topPadding + 2,
               right: 4,
               child: SafeArea(
                 bottom: false,
@@ -1291,11 +1194,11 @@ class _AuthScreenState extends State<AuthScreen> {
 
                   BrandHeaderBackground(
                     height:
-                        topPadding + 220,
+                        topPadding + 214,
                     child: Padding(
                       padding:
                           EdgeInsets.only(
-                        top: topPadding + 26,
+                        top: topPadding + 22,
                       ),
                       child:
                           _buildHeader(),
@@ -1331,10 +1234,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                           decoration:
                               BoxDecoration(
-                            color:
-                                Theme.of(
-                              context,
-                            ).cardColor,
+                            color: Theme.of(context).cardColor,
                             borderRadius:
                                 BorderRadius
                                     .circular(
@@ -1342,8 +1242,7 @@ class _AuthScreenState extends State<AuthScreen> {
                             ),
                             border:
                                 Border.all(
-                              color: Brand.primary
-                                  .withValues(
+                              color: Brand.primary.withValues(
                                 alpha: 0.055,
                               ),
                             ),
