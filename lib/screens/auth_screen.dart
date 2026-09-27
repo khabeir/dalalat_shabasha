@@ -25,10 +25,7 @@ class _AuthScreenState extends State<AuthScreen> {
   // بيانات الدعم
   // ============================================================
 
-  // رقم واتساب بصيغة دولية بدون + أو مسافات.
   static const _supportWhatsAppNumber = '0914111214';
-
-  // رقم الاتصال.
   static const _supportPhoneNumber = '0113339644';
 
   // ============================================================
@@ -50,6 +47,10 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  // ============================================================
+  // دورة حياة الشاشة
+  // ============================================================
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -60,7 +61,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // أدوات مساعدة
+  // الرسائل
   // ============================================================
 
   void _showMessage(String message) {
@@ -71,16 +72,22 @@ class _AuthScreenState extends State<AuthScreen> {
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
           ),
-          content: Text(message),
+          content: Text(
+            message,
+            textAlign: TextAlign.right,
+          ),
         ),
       );
   }
 
-  // تحويل الأرقام العربية إلى غربية.
+  // ============================================================
+  // تحويل الأرقام العربية
+  // ============================================================
+
   String _toWesternDigits(String input) {
     const arabic = '٠١٢٣٤٥٦٧٨٩';
 
@@ -88,6 +95,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     for (final char in input.split('')) {
       final index = arabic.indexOf(char);
+
       buffer.write(
         index == -1 ? char : index.toString(),
       );
@@ -138,6 +146,10 @@ class _AuthScreenState extends State<AuthScreen> {
 
     return phone;
   }
+
+  // ============================================================
+  // التحقق من البريد
+  // ============================================================
 
   bool _isValidEmail(String value) {
     return RegExp(
@@ -238,7 +250,9 @@ class _AuthScreenState extends State<AuthScreen> {
 
     FocusScope.of(context).unfocus();
 
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+    });
 
     try {
       final signedIn = _isLogin
@@ -256,7 +270,9 @@ class _AuthScreenState extends State<AuthScreen> {
       _showMessage(_errorMessage(e));
     } finally {
       if (mounted) {
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+        });
       }
     }
   }
@@ -288,13 +304,17 @@ class _AuthScreenState extends State<AuthScreen> {
           response['message']?.toString() ??
               'رقم الهاتف أو كلمة المرور غير صحيحة',
         );
+
         return false;
       }
 
       final session = _readSession(response);
 
       if (session == null) {
-        _showMessage('تعذر إنشاء جلسة تسجيل الدخول');
+        _showMessage(
+          'تعذر إنشاء جلسة تسجيل الدخول',
+        );
+
         return false;
       }
 
@@ -321,7 +341,7 @@ class _AuthScreenState extends State<AuthScreen> {
     final fullName = _nameController.text.trim();
 
     // ------------------------------------------------------------
-    // بالبريد الإلكتروني
+    // التسجيل بالبريد الإلكتروني
     // ------------------------------------------------------------
 
     if (!_usePhone) {
@@ -342,6 +362,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _showMessage(
           'تم إنشاء الحساب وتسجيل الدخول بنجاح',
         );
+
         return true;
       }
 
@@ -362,7 +383,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
 
     // ------------------------------------------------------------
-    // بالهاتف
+    // التسجيل بالهاتف
     // ------------------------------------------------------------
 
     final phone = _normalizePhone(
@@ -387,6 +408,7 @@ class _AuthScreenState extends State<AuthScreen> {
         response['message']?.toString() ??
             'تعذر إنشاء الحساب',
       );
+
       return false;
     }
 
@@ -396,6 +418,7 @@ class _AuthScreenState extends State<AuthScreen> {
       _showMessage(
         'تم إنشاء الحساب ولكن تعذر تسجيل الدخول',
       );
+
       return false;
     }
 
@@ -456,17 +479,20 @@ class _AuthScreenState extends State<AuthScreen> {
     final refreshToken =
         session['refresh_token']?.toString();
 
-    if (refreshToken == null || refreshToken.isEmpty) {
+    if (refreshToken == null ||
+        refreshToken.isEmpty) {
       throw Exception(
         'بيانات جلسة تسجيل الدخول ناقصة',
       );
     }
 
-    await _supabase.auth.setSession(refreshToken);
+    await _supabase.auth.setSession(
+      refreshToken,
+    );
   }
 
   // ============================================================
-  // رسائل الأخطاء
+  // معالجة الأخطاء
   // ============================================================
 
   bool _isNetworkError(Object error) {
@@ -574,7 +600,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // الدعم والروابط
+  // الروابط
   // ============================================================
 
   Future<void> _launch(
@@ -603,82 +629,327 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // الهوية البصرية للهيدر
-  //
-  // الهيدر يعتمد على خلفية BrandHeaderBackground نفسها المستخدمة
-  // في هوية التطبيق، بدون صور خارجية أو زخارف عشوائية.
+  // زخارف الهيدر V3
+  // ============================================================
+
+  Widget _buildHeaderDecorations() {
+    return Positioned.fill(
+      child: IgnorePointer(
+        child: Stack(
+          clipBehavior: Clip.hardEdge,
+          children: [
+            // ======================================================
+            // توهج بنفسجي
+            // ======================================================
+
+            Positioned(
+              top: -90,
+              right: -70,
+              child: Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(
+                    alpha: 0.055,
+                  ),
+                ),
+              ),
+            ),
+
+            // ======================================================
+            // دائرة ذهبية كبيرة
+            // ======================================================
+
+            Positioned(
+              top: -70,
+              right: -50,
+              child: Container(
+                width: 190,
+                height: 190,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Brand.gold.withValues(
+                    alpha: 0.18,
+                  ),
+                ),
+              ),
+            ),
+
+            // ======================================================
+            // قوس ذهبي
+            // ======================================================
+
+            Positioned(
+              top: -15,
+              right: -72,
+              child: Container(
+                width: 185,
+                height: 185,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Brand.gold.withValues(
+                      alpha: 0.32,
+                    ),
+                    width: 2.2,
+                  ),
+                ),
+              ),
+            ),
+
+            // ======================================================
+            // قوس ذهبي ثاني
+            // ======================================================
+
+            Positioned(
+              top: 18,
+              right: -98,
+              child: Container(
+                width: 225,
+                height: 225,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Colors.white.withValues(
+                      alpha: 0.09,
+                    ),
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+
+            // ======================================================
+            // دائرة زخرفية يسار
+            // ======================================================
+
+            Positioned(
+              bottom: -105,
+              left: -75,
+              child: Container(
+                width: 230,
+                height: 230,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white.withValues(
+                    alpha: 0.045,
+                  ),
+                ),
+              ),
+            ),
+
+            // ======================================================
+            // قوس يسار
+            // ======================================================
+
+            Positioned(
+              bottom: -80,
+              left: -55,
+              child: Container(
+                width: 180,
+                height: 180,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: Brand.gold.withValues(
+                      alpha: 0.18,
+                    ),
+                    width: 2,
+                  ),
+                ),
+              ),
+            ),
+
+            // ======================================================
+            // خط قطري علوي
+            // ======================================================
+
+            Positioned(
+              top: 95,
+              left: -55,
+              child: Transform.rotate(
+                angle: -0.25,
+                child: Container(
+                  width: 170,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(
+                      alpha: 0.045,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(30),
+                  ),
+                ),
+              ),
+            ),
+
+            // ======================================================
+            // خط قطري ذهبي
+            // ======================================================
+
+            Positioned(
+              bottom: 48,
+              right: -45,
+              child: Transform.rotate(
+                angle: -0.25,
+                child: Container(
+                  width: 150,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Brand.gold.withValues(
+                      alpha: 0.22,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(20),
+                  ),
+                ),
+              ),
+            ),
+
+            // ======================================================
+            // نقاط ذهبية
+            // ======================================================
+
+            Positioned(
+              top: 52,
+              right: 76,
+              child: _buildHeaderDot(7),
+            ),
+
+            Positioned(
+              top: 77,
+              right: 51,
+              child: _buildHeaderDot(4),
+            ),
+
+            Positioned(
+              top: 103,
+              right: 92,
+              child: _buildHeaderDot(3),
+            ),
+
+            Positioned(
+              bottom: 54,
+              right: 38,
+              child: _buildHeaderDot(6),
+            ),
+
+            Positioned(
+              bottom: 75,
+              right: 60,
+              child: _buildHeaderDot(3),
+            ),
+
+            Positioned(
+              bottom: 45,
+              left: 48,
+              child: _buildHeaderDot(4),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderDot(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Brand.gold.withValues(
+          alpha: 0.75,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Brand.gold.withValues(
+              alpha: 0.25,
+            ),
+            blurRadius: 7,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // الهيدر الرئيسي V3
   // ============================================================
 
   Widget _buildHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return SizedBox(
+      width: double.infinity,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          // الشعار داخل مساحة شفافة بسيطة حتى يبقى واضحاً فوق الخلفية.
-          Container(
+          _buildHeaderDecorations(),
+
+          Padding(
             padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 10,
+              horizontal: 50,
             ),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                color: Colors.white.withValues(alpha: 0.14),
-              ),
-            ),
-            child: const BrandWordmark(
-              logoSize: 58,
-              titleSize: 25,
-            ),
-          ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // ==================================================
+                // الشعار
+                // ==================================================
 
-          const SizedBox(height: 14),
+                const BrandWordmark(
+                  logoSize: 66,
+                  titleSize: 27,
+                ),
 
-          // وصف قصير ثابت للعلامة بدلاً من الزخارف.
-          const Text(
-            'سوقك المحلي في شبشة',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14.5,
-              fontWeight: FontWeight.w800,
-              color: Colors.white,
-              height: 1.4,
-            ),
-          ),
+                const SizedBox(height: 10),
 
-          const SizedBox(height: 8),
+                // ==================================================
+                // الوصف
+                // ==================================================
 
-          // حالة الشاشة تتغير مع الانتقال بين الدخول والتسجيل.
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            child: Text(
-              _isLogin
-                  ? 'مرحباً بك، سجّل الدخول للمتابعة'
-                  : 'أنشئ حسابك وابدأ البيع والشراء',
-              key: ValueKey(_isLogin),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w500,
-                color: Colors.white.withValues(alpha: 0.88),
-                height: 1.5,
-              ),
-            ),
-          ),
+                AnimatedSwitcher(
+                  duration: const Duration(
+                    milliseconds: 220,
+                  ),
+                  child: Text(
+                    _isLogin
+                        ? 'سوقك المحلي في شبشة'
+                        : 'سوقك المحلي في شبشة',
+                    key: ValueKey(_isLogin),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.45,
+                    ),
+                  ),
+                ),
 
-          const SizedBox(height: 14),
+                const SizedBox(height: 13),
 
-          // اللمسة الذهبية الخاصة بالهوية.
-          Container(
-            width: 46,
-            height: 3,
-            decoration: BoxDecoration(
-              color: Brand.gold,
-              borderRadius: BorderRadius.circular(20),
+                // ==================================================
+                // الخط الذهبي
+                // ==================================================
+
+                Container(
+                  width: 62,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Brand.gold,
+                    borderRadius:
+                        BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Brand.gold.withValues(
+                          alpha: 0.30,
+                        ),
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -687,7 +958,50 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // المبدّل المقسّم
+  // زر الرجوع الدائري
+  // ============================================================
+
+  Widget _buildBackButton() {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: Colors.white.withValues(
+          alpha: 0.12,
+        ),
+        border: Border.all(
+          color: Colors.white.withValues(
+            alpha: 0.18,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(
+              alpha: 0.10,
+            ),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: IconButton(
+        tooltip: 'رجوع',
+        padding: EdgeInsets.zero,
+        onPressed: () {
+          Navigator.maybePop(context);
+        },
+        icon: const Icon(
+          Icons.arrow_forward_rounded,
+          color: Colors.white,
+          size: 22,
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // المبدل المقسم
   // ============================================================
 
   Widget _buildPillSwitch<T>({
@@ -700,10 +1014,10 @@ class _AuthScreenState extends State<AuthScreen> {
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: Brand.soft,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(17),
         border: Border.all(
           color: Brand.primary.withValues(
-            alpha: 0.05,
+            alpha: 0.055,
           ),
         ),
       ),
@@ -716,30 +1030,33 @@ class _AuthScreenState extends State<AuthScreen> {
                     ? null
                     : () => onChanged(option.$1),
                 child: AnimatedContainer(
-                  duration:
-                      const Duration(milliseconds: 180),
+                  duration: const Duration(
+                    milliseconds: 200,
+                  ),
+                  curve: Curves.easeOut,
                   padding: const EdgeInsets.symmetric(
-                    vertical: 11,
+                    vertical: 12,
                   ),
                   decoration: BoxDecoration(
                     color: option.$1 == selected
                         ? Brand.primary
-                        : null,
+                        : Colors.transparent,
                     borderRadius:
-                        BorderRadius.circular(13),
-                    boxShadow: option.$1 == selected
-                        ? [
-                            BoxShadow(
-                              color: Brand.primary
-                                  .withValues(
-                                alpha: 0.28,
-                              ),
-                              blurRadius: 10,
-                              offset:
-                                  const Offset(0, 4),
-                            ),
-                          ]
-                        : null,
+                        BorderRadius.circular(14),
+                    boxShadow:
+                        option.$1 == selected
+                            ? [
+                                BoxShadow(
+                                  color: Brand.primary
+                                      .withValues(
+                                    alpha: 0.25,
+                                  ),
+                                  blurRadius: 12,
+                                  offset:
+                                      const Offset(0, 5),
+                                ),
+                              ]
+                            : null,
                   ),
                   child: Row(
                     mainAxisAlignment:
@@ -748,10 +1065,11 @@ class _AuthScreenState extends State<AuthScreen> {
                       if (option.$2 != null) ...[
                         Icon(
                           option.$2,
-                          size: 17,
-                          color: option.$1 == selected
-                              ? Colors.white
-                              : Brand.ink,
+                          size: 18,
+                          color:
+                              option.$1 == selected
+                                  ? Colors.white
+                                  : Brand.ink,
                         ),
                         const SizedBox(width: 6),
                       ],
@@ -820,7 +1138,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // تنسيق حقول النموذج
+  // تنسيق الحقول
   // ============================================================
 
   InputDecoration _fieldDecoration({
@@ -835,49 +1153,59 @@ class _AuthScreenState extends State<AuthScreen> {
       hintText: hint,
       helperText: helper,
       helperMaxLines: 2,
+
       prefixIcon: Icon(
         icon,
         color: Brand.primary,
         size: 22,
       ),
+
       suffixIcon: suffixIcon,
+
       filled: true,
+
       fillColor: Brand.soft.withValues(
-        alpha: 0.62,
+        alpha: 0.65,
       ),
+
       contentPadding: const EdgeInsets.symmetric(
         vertical: 16,
         horizontal: 14,
       ),
+
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(17),
         borderSide: BorderSide.none,
       ),
+
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(17),
         borderSide: BorderSide(
           color: Brand.primary.withValues(
-            alpha: 0.035,
+            alpha: 0.045,
           ),
         ),
       ),
+
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(17),
         borderSide: const BorderSide(
           color: Brand.primary,
           width: 1.6,
         ),
       ),
+
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(17),
         borderSide: BorderSide(
           color: Theme.of(context)
               .colorScheme
               .error,
         ),
       ),
+
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(17),
         borderSide: BorderSide(
           color: Theme.of(context)
               .colorScheme
@@ -994,10 +1322,8 @@ class _AuthScreenState extends State<AuthScreen> {
               },
               icon: Icon(
                 _obscurePassword
-                    ? Icons
-                        .visibility_outlined
-                    : Icons
-                        .visibility_off_outlined,
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
                 color: Brand.ink,
               ),
             ),
@@ -1042,10 +1368,8 @@ class _AuthScreenState extends State<AuthScreen> {
                 },
                 icon: Icon(
                   _obscureConfirmPassword
-                      ? Icons
-                          .visibility_outlined
-                      : Icons
-                          .visibility_off_outlined,
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   color: Brand.ink,
                 ),
               ),
@@ -1109,6 +1433,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
           ),
         ),
+
         if (hasLinks)
           Wrap(
             alignment: WrapAlignment.center,
@@ -1121,6 +1446,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     'شروط الاستخدام',
                   ),
                 ),
+
               if (_privacyPolicyUrl
                   .isNotEmpty)
                 TextButton(
@@ -1139,7 +1465,149 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // بناء الشاشة
+  // بطاقة الدخول
+  // ============================================================
+
+  Widget _buildAuthCard() {
+    return Transform.translate(
+      offset: const Offset(0, -24),
+      child: Center(
+        child: ConstrainedBox(
+          constraints:
+              const BoxConstraints(
+            maxWidth: 460,
+          ),
+          child: Container(
+            margin:
+                const EdgeInsets.symmetric(
+              horizontal: 18,
+            ),
+            padding:
+                const EdgeInsets.fromLTRB(
+              20,
+              24,
+              20,
+              25,
+            ),
+            decoration: BoxDecoration(
+              color: Theme.of(context)
+                  .cardColor,
+              borderRadius:
+                  BorderRadius.circular(30),
+              border: Border.all(
+                color: Brand.primary
+                    .withValues(
+                  alpha: 0.055,
+                ),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Brand.primary
+                      .withValues(
+                    alpha: 0.15,
+                  ),
+                  blurRadius: 30,
+                  spreadRadius: 1,
+                  offset:
+                      const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: AutofillGroup(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.stretch,
+                  children: [
+                    _buildModeSwitch(),
+
+                    const SizedBox(
+                      height: 14,
+                    ),
+
+                    _buildMethodSwitch(),
+
+                    const SizedBox(
+                      height: 20,
+                    ),
+
+                    _buildFields(),
+
+                    const SizedBox(
+                      height: 23,
+                    ),
+
+                    _buildSubmitButton(),
+
+                    if (!_isLogin) ...[
+                      const SizedBox(
+                        height: 13,
+                      ),
+                      _buildLegalNote(),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // بطاقة الدعم
+  // ============================================================
+
+  Widget _buildSupportCard() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        18,
+        0,
+        18,
+        26,
+      ),
+      child: ConstrainedBox(
+        constraints:
+            const BoxConstraints(
+          maxWidth: 460,
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius:
+                BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Brand.primary
+                    .withValues(
+                  alpha: 0.08,
+                ),
+                blurRadius: 18,
+                offset:
+                    const Offset(0, 7),
+              ),
+            ],
+          ),
+          child: const SupportContactCard(
+            title:
+                'لا تستطيع التسجيل أو إضافة إعلانك؟',
+            subtitle:
+                'تواصل معنا وسنساعدك، أو نضيف إعلانك '
+                'بدلاً عنك. وإن نسيت كلمة المرور '
+                'فنعيد تعيينها لك.',
+            whatsappNumber:
+                _supportWhatsAppNumber,
+            phoneNumber:
+                _supportPhoneNumber,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ============================================================
+  // البناء الرئيسي
   // ============================================================
 
   @override
@@ -1148,203 +1616,85 @@ class _AuthScreenState extends State<AuthScreen> {
         MediaQuery.of(context).padding.top;
 
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection:
+          TextDirection.rtl,
       child: Scaffold(
         backgroundColor:
             Theme.of(context)
                 .scaffoldBackgroundColor,
+
         body: Stack(
           children: [
             // ======================================================
-            // زر الرجوع
-            // ======================================================
-
-            Positioned(
-              top: topPadding + 2,
-              right: 4,
-              child: SafeArea(
-                bottom: false,
-                child: IconButton(
-                  tooltip: 'رجوع',
-                  onPressed: () =>
-                      Navigator.maybePop(
-                    context,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_forward_rounded,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-
-            // ======================================================
-            // المحتوى
+            // الخلفية
             // ======================================================
 
             SingleChildScrollView(
               keyboardDismissBehavior:
                   ScrollViewKeyboardDismissBehavior
                       .onDrag,
+
               child: Column(
                 children: [
-                  // ------------------------------------------------
-                  // الهيدر الرئيسي
-                  // ------------------------------------------------
+                  // ==================================================
+                  // الهيدر V3
+                  // ==================================================
 
-                  BrandHeaderBackground(
+                  Container(
+                    width: double.infinity,
                     height:
-                        topPadding + 214,
+                        topPadding + 245,
+
+                    decoration:
+                        const BoxDecoration(
+                      gradient:
+                          LinearGradient(
+                        begin:
+                            Alignment.topRight,
+                        end:
+                            Alignment.bottomLeft,
+                        colors: [
+                          Color(0xFF35147D),
+                          Color(0xFF5423A5),
+                          Color(0xFF6D35C2),
+                        ],
+                      ),
+                    ),
+
                     child: Padding(
                       padding:
                           EdgeInsets.only(
-                        top: topPadding + 22,
+                        top:
+                            topPadding + 38,
                       ),
                       child:
                           _buildHeader(),
                     ),
                   ),
 
-                  // ------------------------------------------------
-                  // بطاقة تسجيل الدخول
-                  // ------------------------------------------------
+                  // ==================================================
+                  // بطاقة الدخول
+                  // ==================================================
 
-                  Transform.translate(
-                    offset:
-                        const Offset(0, -20),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints:
-                            const BoxConstraints(
-                          maxWidth: 460,
-                        ),
-                        child: Container(
-                          margin:
-                              const EdgeInsets
-                                  .symmetric(
-                            horizontal: 18,
-                          ),
-                          padding:
-                              const EdgeInsets
-                                  .fromLTRB(
-                            20,
-                            24,
-                            20,
-                            24,
-                          ),
-                          decoration:
-                              BoxDecoration(
-                            color: Theme.of(context).cardColor,
-                            borderRadius:
-                                BorderRadius
-                                    .circular(
-                              28,
-                            ),
-                            border:
-                                Border.all(
-                              color: Brand.primary.withValues(
-                                alpha: 0.055,
-                              ),
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Brand
-                                    .primary
-                                    .withValues(
-                                  alpha: 0.14,
-                                ),
-                                blurRadius: 26,
-                                offset:
-                                    const Offset(
-                                  0,
-                                  10,
-                                ),
-                              ),
-                            ],
-                          ),
-                          child:
-                              AutofillGroup(
-                            child: Form(
-                              key: _formKey,
-                              child: Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment
-                                        .stretch,
-                                children: [
-                                  // الوضع:
-                                  // دخول / حساب جديد
-                                  _buildModeSwitch(),
+                  _buildAuthCard(),
 
-                                  const SizedBox(
-                                    height: 14,
-                                  ),
+                  // ==================================================
+                  // الدعم
+                  // ==================================================
 
-                                  // طريقة التسجيل:
-                                  // هاتف / بريد
-                                  _buildMethodSwitch(),
-
-                                  const SizedBox(
-                                    height: 20,
-                                  ),
-
-                                  _buildFields(),
-
-                                  const SizedBox(
-                                    height: 22,
-                                  ),
-
-                                  _buildSubmitButton(),
-
-                                  if (!_isLogin) ...[
-                                    const SizedBox(
-                                      height: 12,
-                                    ),
-                                    _buildLegalNote(),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  // ------------------------------------------------
-                  // بطاقة الدعم
-                  // ------------------------------------------------
-
-                  Padding(
-                    padding:
-                        const EdgeInsets
-                            .fromLTRB(
-                      18,
-                      0,
-                      18,
-                      24,
-                    ),
-                    child: ConstrainedBox(
-                      constraints:
-                          const BoxConstraints(
-                        maxWidth: 460,
-                      ),
-                      child:
-                          const SupportContactCard(
-                        title:
-                            'لا تستطيع التسجيل أو إضافة إعلانك؟',
-                        subtitle:
-                            'تواصل معنا وسنساعدك، أو نضيف إعلانك '
-                            'بدلاً عنك. وإن نسيت كلمة المرور '
-                            'فنعيد تعيينها لك.',
-                        whatsappNumber:
-                            _supportWhatsAppNumber,
-                        phoneNumber:
-                            _supportPhoneNumber,
-                      ),
-                    ),
-                  ),
+                  _buildSupportCard(),
                 ],
               ),
+            ),
+
+            // ========================================================
+            // زر الرجوع فوق الهيدر
+            // ========================================================
+
+            Positioned(
+              top: topPadding + 8,
+              right: 14,
+              child: _buildBackButton(),
             ),
           ],
         ),
