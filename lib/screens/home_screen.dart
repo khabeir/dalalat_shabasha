@@ -1060,7 +1060,7 @@ Future<void> _loadListings({bool reset = true}) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => const AdminListingsScreen(),
+        builder: (_) => const AdminDashboardScreen(),
       ),
     );
 
