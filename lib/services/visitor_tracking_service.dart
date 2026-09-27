@@ -15,41 +15,39 @@ class VisitorTrackingService {
   String? _sessionId;
   bool _started = false;
 
-  /// بدء جلسة الزائر
   Future<void> start() async {
     if (_started) return;
 
-    // النظام الحالي يعتمد على المستخدم المسجل الدخول.
-    // إذا لم يكن هناك مستخدم مسجل، لا نرسل جلسة.
-    if (_supabase.auth.currentUser == null) {
-      return;
-    }
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
 
-    _sessionId = _createSessionId();
+    final sessionId = _createSessionId();
 
     try {
       await _supabase.rpc(
         'start_visitor_session',
         params: {
-          'p_session_id': _sessionId,
+          'p_session_id': sessionId,
         },
       );
 
+      _sessionId = sessionId;
       _started = true;
 
       _startHeartbeat();
     } catch (_) {
-      // لا نريد أن يتوقف التطبيق إذا حدث خطأ في نظام الإحصائيات.
+      // لا نوقف التطبيق إذا فشل تسجيل الزيارة.
     }
   }
 
-  /// إرسال نبضة نشاط كل دقيقة
   void _startHeartbeat() {
     _heartbeatTimer?.cancel();
 
     _heartbeatTimer = Timer.periodic(
       const Duration(minutes: 1),
-      (_) => _sendHeartbeat(),
+      (_) async {
+        await _sendHeartbeat();
+      },
     );
   }
 
@@ -58,7 +56,10 @@ class VisitorTrackingService {
 
     if (!_started || sessionId == null) return;
 
-    if (_supabase.auth.currentUser == null) return;
+    if (_supabase.auth.currentUser == null) {
+      dispose();
+      return;
+    }
 
     try {
       await _supabase.rpc(
@@ -72,7 +73,6 @@ class VisitorTrackingService {
     }
   }
 
-  /// إنشاء معرف جلسة عشوائي
   String _createSessionId() {
     final random = Random();
 
@@ -84,7 +84,6 @@ class VisitorTrackingService {
     return '${DateTime.now().microsecondsSinceEpoch}-$randomPart';
   }
 
-  /// إيقاف خدمة التتبع
   void dispose() {
     _heartbeatTimer?.cancel();
     _heartbeatTimer = null;
