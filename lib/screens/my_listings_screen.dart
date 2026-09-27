@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_decorations.dart';
+import '../services/offline_cache_service.dart';
 import 'add_listing_screen.dart';
 import 'edit_listing_screen.dart';
 import 'listing_details_screen.dart';
@@ -29,12 +30,15 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
 
   final NumberFormat _numberFormat = NumberFormat('#,##0.##', 'en');
   final SupabaseClient _supabase = Supabase.instance.client;
+  final OfflineCacheService _offlineCache =
+      OfflineCacheService.instance;
 
   List<Map<String, dynamic>> _listings = [];
   Map<String, String?> _imageUrls = {};
   final Set<String> _busyIds = {};
 
   bool _loading = true;
+  bool _offlineMode = false;
   String? _error;
   String _filter = 'all';
 
@@ -44,11 +48,16 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     _loadListings();
   }
 
+  // ============================================================
+  // تحميل إعلاناتي
+  // ============================================================
+
   Future<void> _loadListings() async {
     if (mounted) {
       setState(() {
         _loading = true;
         _error = null;
+        _offlineMode = false;
       });
     }
 
@@ -67,6 +76,9 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
 
       final rows = List<Map<String, dynamic>>.from(data);
 
+      // حفظ إعلانات المستخدم محليًا.
+      await _offlineCache.saveMyListings(rows);
+
       final imageUrls = await _loadImageUrls(
         rows.map((item) => item['id'].toString()).toList(),
       );
@@ -78,23 +90,66 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         _imageUrls = imageUrls;
         _filter = _normalizeFilter(_filter);
         _loading = false;
+        _offlineMode = false;
+        _error = null;
       });
     } catch (e) {
+      await _loadFromOfflineCache();
+    }
+  }
+
+  // ============================================================
+  // تحميل إعلاناتي من الكاش
+  // ============================================================
+
+  Future<void> _loadFromOfflineCache() async {
+    try {
+      final cachedListings =
+          await _offlineCache.getMyListings();
+
+      if (cachedListings.isEmpty) {
+        if (!mounted) return;
+
+        setState(() {
+          _loading = false;
+          _offlineMode = true;
+          _error =
+              'لا توجد نسخة محفوظة من إعلاناتك.\n'
+              'اتصل بالإنترنت مرة واحدة لتحميل إعلاناتك.';
+        });
+
+        return;
+      }
+
+      final imageUrls = await _loadCachedImageUrls(
+        cachedListings,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _listings = cachedListings;
+        _imageUrls = imageUrls;
+        _filter = _normalizeFilter(_filter);
+        _loading = false;
+        _offlineMode = true;
+        _error = null;
+      });
+    } catch (_) {
       if (!mounted) return;
 
       setState(() {
         _loading = false;
-        _error = e.toString().replaceFirst('Exception: ', '');
+        _offlineMode = true;
+        _error =
+            'تعذر تحميل النسخة المحفوظة من إعلاناتك.';
       });
-
-      if (_listings.isNotEmpty) {
-        _showSnack(
-          'تعذر تحديث الإعلانات حالياً',
-          isError: true,
-        );
-      }
     }
   }
+
+  // ============================================================
+  // تحميل روابط الصور من Supabase
+  // ============================================================
 
   Future<Map<String, String?>> _loadImageUrls(
     List<String> listingIds,
@@ -114,7 +169,9 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         final listingId = row['listing_id']?.toString();
         final path = row['image_path']?.toString();
 
-        if (listingId == null || path == null || path.isEmpty) {
+        if (listingId == null ||
+            path == null ||
+            path.isEmpty) {
           continue;
         }
 
@@ -122,7 +179,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
           continue;
         }
 
-        if (path.startsWith('http://') || path.startsWith('https://')) {
+        if (path.startsWith('http://') ||
+            path.startsWith('https://')) {
           result[listingId] = path;
         } else {
           result[listingId] = _supabase.storage
@@ -137,11 +195,66 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     }
   }
 
+  // ============================================================
+  // الصور الموجودة مع البيانات المحفوظة
+  // ============================================================
+
+  Future<Map<String, String?>> _loadCachedImageUrls(
+    List<Map<String, dynamic>> listings,
+  ) async {
+    final result = <String, String?>{};
+
+    for (final listing in listings) {
+      final listingId = listing['id']?.toString();
+
+      if (listingId == null || listingId.isEmpty) {
+        continue;
+      }
+
+      // دعم أي رابط صورة محفوظ داخل الإعلان مستقبلًا.
+      final possibleImageKeys = [
+        'image_url',
+        'imageUrl',
+        'thumbnail_url',
+        'thumbnailUrl',
+      ];
+
+      for (final key in possibleImageKeys) {
+        final value = listing[key]?.toString();
+
+        if (value != null &&
+            value.isNotEmpty &&
+            (value.startsWith('http://') ||
+                value.startsWith('https://'))) {
+          result[listingId] = value;
+          break;
+        }
+      }
+    }
+
+    return result;
+  }
+
+  // ============================================================
+  // تحديث الكاش بعد تغيير إعلان
+  // ============================================================
+
+  Future<void> _saveCurrentListingsToCache() async {
+    try {
+      await _offlineCache.saveMyListings(
+        List<Map<String, dynamic>>.from(_listings),
+      );
+    } catch (_) {
+      // الكاش ليس سببًا لإيقاف العملية الأساسية.
+    }
+  }
+
   String _normalizeFilter(String value) {
     if (value == 'all') return value;
 
     final exists = _listings.any(
-      (listing) => (listing['status'] ?? '').toString() == value,
+      (listing) =>
+          (listing['status'] ?? '').toString() == value,
     );
 
     return exists ? value : 'all';
@@ -166,7 +279,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
             ),
           ),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: isError ? Colors.red.shade700 : AppColors.ink,
+          backgroundColor:
+              isError ? Colors.red.shade700 : AppColors.ink,
           margin: const EdgeInsets.all(14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
@@ -205,10 +319,12 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                 height: 1.6,
               ),
             ),
-            actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+            actionsPadding:
+                const EdgeInsets.fromLTRB(16, 0, 16, 14),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context, false),
+                onPressed: () =>
+                    Navigator.pop(context, false),
                 child: const Text(
                   'إلغاء',
                   style: TextStyle(
@@ -219,14 +335,17 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
               ),
               FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor:
-                      destructive ? Colors.red.shade700 : AppColors.brand,
+                  backgroundColor: destructive
+                      ? Colors.red.shade700
+                      : AppColors.brand,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius:
+                        BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () => Navigator.pop(context, true),
+                onPressed: () =>
+                    Navigator.pop(context, true),
                 child: Text(
                   confirmText,
                   style: const TextStyle(
@@ -287,13 +406,15 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       return 'السعر عند التواصل';
     }
 
-    final numericPrice = double.tryParse(price.toString());
+    final numericPrice =
+        double.tryParse(price.toString());
 
     if (numericPrice == null) {
       return 'السعر عند التواصل';
     }
 
-    final formatted = _numberFormat.format(numericPrice);
+    final formatted =
+        _numberFormat.format(numericPrice);
     final currency = listing['currency']?.toString();
 
     if (currency == null || currency.isEmpty) {
@@ -314,7 +435,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       return '';
     }
 
-    final difference = DateTime.now().difference(date);
+    final difference =
+        DateTime.now().difference(date);
 
     if (difference.inMinutes < 1) {
       return 'الآن';
@@ -343,7 +465,9 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     return 'منذ ${(difference.inDays / 365).floor()} سنة';
   }
 
-  Future<void> _openListing(Map<String, dynamic> listing) async {
+  Future<void> _openListing(
+    Map<String, dynamic> listing,
+  ) async {
     final rawId = listing['id'];
 
     if (rawId == null) return;
@@ -381,7 +505,9 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     }
   }
 
-  Future<void> _editListing(Map<String, dynamic> listing) async {
+  Future<void> _editListing(
+    Map<String, dynamic> listing,
+  ) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -400,28 +526,36 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     Map<String, dynamic> listing,
     String newStatus,
   ) async {
-    final listingId = listing['id']?.toString();
+    final listingId =
+        listing['id']?.toString();
 
-    if (listingId == null || listingId.isEmpty) return;
+    if (listingId == null || listingId.isEmpty) {
+      return;
+    }
 
-    final title = listing['title']?.toString() ?? 'هذا الإعلان';
+    final title =
+        listing['title']?.toString() ??
+            'هذا الإعلان';
 
     String message;
     String confirmText;
 
     switch (newStatus) {
       case 'sold':
-        message = 'هل تريد تحديد الإعلان "$title" على أنه تم بيعه؟';
+        message =
+            'هل تريد تحديد الإعلان "$title" على أنه تم بيعه؟';
         confirmText = 'تم البيع';
         break;
 
       case 'archived':
-        message = 'هل تريد أرشفة الإعلان "$title"؟';
+        message =
+            'هل تريد أرشفة الإعلان "$title"؟';
         confirmText = 'أرشفة';
         break;
 
       case 'approved':
-        message = 'هل تريد إعادة نشر الإعلان "$title"؟';
+        message =
+            'هل تريد إعادة نشر الإعلان "$title"؟';
         confirmText = 'نشر';
         break;
 
@@ -449,6 +583,14 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   ) async {
     if (_busyIds.contains(listingId)) return;
 
+    if (_offlineMode) {
+      _showSnack(
+        'لا يمكن تغيير حالة الإعلان بدون إنترنت',
+        isError: true,
+      );
+      return;
+    }
+
     setState(() {
       _busyIds.add(listingId);
     });
@@ -465,7 +607,9 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
 
       setState(() {
         final index = _listings.indexWhere(
-          (listing) => listing['id']?.toString() == listingId,
+          (listing) =>
+              listing['id']?.toString() ==
+              listingId,
         );
 
         if (index != -1) {
@@ -476,10 +620,15 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         }
 
         _busyIds.remove(listingId);
-        _filter = _normalizeFilter(_filter);
+        _filter =
+            _normalizeFilter(_filter);
       });
 
-      _showSnack('تم تحديث حالة الإعلان بنجاح');
+      await _saveCurrentListingsToCache();
+
+      _showSnack(
+        'تم تحديث حالة الإعلان بنجاح',
+      );
     } catch (_) {
       if (!mounted) return;
 
@@ -497,16 +646,31 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   Future<void> _deleteListing(
     Map<String, dynamic> listing,
   ) async {
-    final listingId = listing['id']?.toString();
+    final listingId =
+        listing['id']?.toString();
 
-    if (listingId == null || listingId.isEmpty) return;
+    if (listingId == null ||
+        listingId.isEmpty) {
+      return;
+    }
 
-    final title = listing['title']?.toString() ?? 'هذا الإعلان';
+    if (_offlineMode) {
+      _showSnack(
+        'لا يمكن حذف الإعلان بدون إنترنت',
+        isError: true,
+      );
+      return;
+    }
+
+    final title =
+        listing['title']?.toString() ??
+            'هذا الإعلان';
 
     final confirmed = await _confirm(
       title: 'حذف الإعلان',
       message:
-          'هل أنت متأكد من حذف "$title"؟\n\nلا يمكن التراجع عن هذا الإجراء.',
+          'هل أنت متأكد من حذف "$title"؟\n\n'
+          'لا يمكن التراجع عن هذا الإجراء.',
       confirmText: 'حذف نهائياً',
       destructive: true,
     );
@@ -531,14 +695,22 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
 
       setState(() {
         _listings.removeWhere(
-          (item) => item['id']?.toString() == listingId,
+          (item) =>
+              item['id']?.toString() ==
+              listingId,
         );
+
         _imageUrls.remove(listingId);
         _busyIds.remove(listingId);
-        _filter = _normalizeFilter(_filter);
+        _filter =
+            _normalizeFilter(_filter);
       });
 
-      _showSnack('تم حذف الإعلان بنجاح');
+      await _saveCurrentListingsToCache();
+
+      _showSnack(
+        'تم حذف الإعلان بنجاح',
+      );
     } catch (_) {
       if (!mounted) return;
 
@@ -555,7 +727,9 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     }
   }
 
-  Future<void> _deleteImageFiles(String listingId) async {
+  Future<void> _deleteImageFiles(
+    String listingId,
+  ) async {
     try {
       final rows = await _supabase
           .from('listing_images')
@@ -564,8 +738,10 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
 
       final paths = <String>[];
 
-      for (final row in List<Map<String, dynamic>>.from(rows)) {
-        final path = row['image_path']?.toString();
+      for (final row
+          in List<Map<String, dynamic>>.from(rows)) {
+        final path =
+            row['image_path']?.toString();
 
         if (path != null &&
             path.isNotEmpty &&
@@ -581,7 +757,7 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
               .from(_bucket)
               .remove(paths);
         } catch (_) {
-          // لا نوقف حذف الإعلان إذا فشل حذف الملفات من التخزين.
+          // لا نوقف حذف الإعلان إذا فشل حذف الملفات.
         }
       }
     } catch (_) {
@@ -599,6 +775,14 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         break;
 
       case 'edit':
+        if (_offlineMode) {
+          _showSnack(
+            'لا يمكن تعديل الإعلان بدون إنترنت',
+            isError: true,
+          );
+          return;
+        }
+
         _editListing(listing);
         break;
 
@@ -680,11 +864,13 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         color: AppColors.brandSoft,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.brand.withValues(alpha: 0.10),
+          color:
+              AppColors.brand.withValues(alpha: 0.10),
         ),
       ),
       clipBehavior: Clip.antiAlias,
-      child: imageUrl == null || imageUrl.isEmpty
+      child: imageUrl == null ||
+              imageUrl.isEmpty
           ? const Center(
               child: Icon(
                 Icons.image_outlined,
@@ -695,17 +881,20 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
           : CachedNetworkImage(
               imageUrl: imageUrl,
               fit: BoxFit.cover,
-              placeholder: (_, __) => const Center(
+              placeholder: (_, __) =>
+                  const Center(
                 child: SizedBox(
                   width: 22,
                   height: 22,
-                  child: CircularProgressIndicator(
+                  child:
+                      CircularProgressIndicator(
                     strokeWidth: 2.2,
                     color: AppColors.brand,
                   ),
                 ),
               ),
-              errorWidget: (_, __, ___) => const Center(
+              errorWidget: (_, __, ___) =>
+                  const Center(
                 child: Icon(
                   Icons.broken_image_outlined,
                   color: AppColors.brand,
@@ -719,7 +908,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   List<PopupMenuEntry<String>> _menuItems(
     Map<String, dynamic> listing,
   ) {
-    final status = listing['status']?.toString();
+    final status =
+        listing['status']?.toString();
 
     return [
       const PopupMenuItem<String>(
@@ -759,7 +949,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
             title: Text('تحديد كمباع'),
           ),
         ),
-      if (status == 'approved' || status == 'sold')
+      if (status == 'approved' ||
+          status == 'sold')
         const PopupMenuItem<String>(
           value: 'archive',
           child: ListTile(
@@ -772,7 +963,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
             title: Text('أرشفة'),
           ),
         ),
-      if (status == 'archived' || status == 'rejected')
+      if (status == 'archived' ||
+          status == 'rejected')
         const PopupMenuItem<String>(
           value: 'publish',
           child: ListTile(
@@ -810,21 +1002,31 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   Widget _buildListingCard(
     Map<String, dynamic> listing,
   ) {
-    final listingId = listing['id']?.toString() ?? '';
-    final status = listing['status']?.toString();
-    final title = listing['title']?.toString() ?? 'بدون عنوان';
-    final area = listing['area']?.toString();
-    final time = _timeAgo(listing['created_at']);
-    final busy = _busyIds.contains(listingId);
+    final listingId =
+        listing['id']?.toString() ?? '';
+    final status =
+        listing['status']?.toString();
+    final title =
+        listing['title']?.toString() ??
+            'بدون عنوان';
+    final area =
+        listing['area']?.toString();
+    final time =
+        _timeAgo(listing['created_at']);
+    final busy =
+        _busyIds.contains(listingId);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
+      margin:
+          const EdgeInsets.only(bottom: 14),
       decoration: AppDecorations.card(),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: busy || listingId.isEmpty
+          borderRadius:
+              BorderRadius.circular(18),
+          onTap: busy ||
+                  listingId.isEmpty
               ? null
               : () => _openListing(listing),
           child: Padding(
@@ -832,59 +1034,82 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
             child: Column(
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
                   children: [
-                    _buildThumbnail(listingId),
+                    _buildThumbnail(
+                      listingId,
+                    ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment:
+                            CrossAxisAlignment.start,
                         children: [
                           Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment:
+                                CrossAxisAlignment.start,
                             children: [
                               Expanded(
                                 child: Text(
                                   title,
                                   maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: AppColors.ink,
+                                  overflow:
+                                      TextOverflow.ellipsis,
+                                  style:
+                                      const TextStyle(
+                                    color:
+                                        AppColors.ink,
                                     fontSize: 15,
-                                    fontWeight: FontWeight.w900,
+                                    fontWeight:
+                                        FontWeight.w900,
                                     height: 1.35,
                                   ),
                                 ),
                               ),
                               PopupMenuButton<String>(
-                                tooltip: 'خيارات الإعلان',
-                                padding: EdgeInsets.zero,
-                                icon: const Icon(
+                                tooltip:
+                                    'خيارات الإعلان',
+                                padding:
+                                    EdgeInsets.zero,
+                                icon:
+                                    const Icon(
                                   Icons.more_vert,
-                                  color: AppColors.ink,
+                                  color:
+                                      AppColors.ink,
                                 ),
                                 onSelected: busy
                                     ? null
-                                    : (value) => _onMenuSelected(
+                                    : (value) =>
+                                        _onMenuSelected(
                                           value,
                                           listing,
                                         ),
                                 itemBuilder: (_) =>
-                                    _menuItems(listing),
+                                    _menuItems(
+                                      listing,
+                                    ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            _priceText(listing),
-                            style: const TextStyle(
-                              color: AppColors.brand,
+                            _priceText(
+                              listing,
+                            ),
+                            style:
+                                const TextStyle(
+                              color:
+                                  AppColors.brand,
                               fontSize: 15,
-                              fontWeight: FontWeight.w900,
+                              fontWeight:
+                                  FontWeight.w900,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          _buildStatusBadge(status),
+                          _buildStatusBadge(
+                            status,
+                          ),
                         ],
                       ),
                     ),
@@ -892,32 +1117,52 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                 ),
                 const SizedBox(height: 10),
                 Container(
-                  padding: const EdgeInsets.only(top: 10),
-                  decoration: BoxDecoration(
+                  padding:
+                      const EdgeInsets.only(
+                    top: 10,
+                  ),
+                  decoration:
+                      BoxDecoration(
                     border: Border(
                       top: BorderSide(
-                        color: AppColors.brand.withValues(alpha: 0.07),
+                        color: AppColors.brand
+                            .withValues(
+                          alpha: 0.07,
+                        ),
                       ),
                     ),
                   ),
                   child: Row(
                     children: [
-                      if (area != null && area.isNotEmpty) ...[
+                      if (area != null &&
+                          area.isNotEmpty) ...[
                         Icon(
-                          Icons.location_on_outlined,
+                          Icons
+                              .location_on_outlined,
                           size: 16,
-                          color: AppColors.ink.withValues(alpha: 0.52),
+                          color: AppColors.ink
+                              .withValues(
+                            alpha: 0.52,
+                          ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(
+                          width: 4,
+                        ),
                         Expanded(
                           child: Text(
                             area,
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            overflow:
+                                TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: AppColors.ink.withValues(alpha: 0.62),
+                              color: AppColors
+                                  .ink
+                                  .withValues(
+                                alpha: 0.62,
+                              ),
                               fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
+                              fontWeight:
+                                  FontWeight.w600,
                             ),
                           ),
                         ),
@@ -925,17 +1170,28 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                         const Spacer(),
                       if (time.isNotEmpty) ...[
                         Icon(
-                          Icons.schedule_outlined,
+                          Icons
+                              .schedule_outlined,
                           size: 15,
-                          color: AppColors.ink.withValues(alpha: 0.45),
+                          color: AppColors.ink
+                              .withValues(
+                            alpha: 0.45,
+                          ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(
+                          width: 4,
+                        ),
                         Text(
                           time,
                           style: TextStyle(
-                            color: AppColors.ink.withValues(alpha: 0.55),
+                            color: AppColors
+                                .ink
+                                .withValues(
+                              alpha: 0.55,
+                            ),
                             fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                            fontWeight:
+                                FontWeight.w600,
                           ),
                         ),
                       ],
@@ -946,31 +1202,50 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(11),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(12),
+                    padding:
+                        const EdgeInsets.all(11),
+                    decoration:
+                        BoxDecoration(
+                      color: Colors.red
+                          .withValues(
+                        alpha: 0.06,
+                      ),
+                      borderRadius:
+                          BorderRadius.circular(
+                        12,
+                      ),
                       border: Border.all(
-                        color: Colors.red.withValues(alpha: 0.12),
+                        color: Colors.red
+                            .withValues(
+                          alpha: 0.12,
+                        ),
                       ),
                     ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
                       children: [
                         Icon(
                           Icons.info_outline,
-                          color: Colors.red.shade700,
+                          color:
+                              Colors.red.shade700,
                           size: 19,
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(
+                          width: 8,
+                        ),
                         Expanded(
                           child: Text(
-                            listing['rejection_reason']?.toString() ??
+                            listing[
+                                      'rejection_reason']
+                                    ?.toString() ??
                                 'تم رفض الإعلان. يمكنك تعديله وإعادة إرساله.',
                             style: TextStyle(
-                              color: Colors.red.shade800,
+                              color: Colors.red
+                                  .shade800,
                               fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
+                              fontWeight:
+                                  FontWeight.w600,
                               height: 1.5,
                             ),
                           ),
@@ -983,16 +1258,24 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(11),
-                    decoration: BoxDecoration(
-                      color: AppColors.brandSoft,
-                      borderRadius: BorderRadius.circular(12),
+                    padding:
+                        const EdgeInsets.all(11),
+                    decoration:
+                        BoxDecoration(
+                      color:
+                          AppColors.brandSoft,
+                      borderRadius:
+                          BorderRadius.circular(
+                        12,
+                      ),
                     ),
                     child: const Row(
                       children: [
                         Icon(
-                          Icons.hourglass_top_rounded,
-                          color: AppColors.brand,
+                          Icons
+                              .hourglass_top_rounded,
+                          color:
+                              AppColors.brand,
                           size: 18,
                         ),
                         SizedBox(width: 8),
@@ -1000,9 +1283,11 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                           child: Text(
                             'الإعلان قيد المراجعة وسيظهر للمستخدمين بعد اعتماده.',
                             style: TextStyle(
-                              color: AppColors.ink,
+                              color:
+                                  AppColors.ink,
                               fontSize: 11.5,
-                              fontWeight: FontWeight.w600,
+                              fontWeight:
+                                  FontWeight.w600,
                               height: 1.5,
                             ),
                           ),
@@ -1011,23 +1296,44 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                     ),
                   ),
                 ],
-                if (status == 'rejected' || status == 'pending') ...[
+                if (status == 'rejected' ||
+                    status == 'pending') ...[
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: busy || listingId.isEmpty
+                    child:
+                        OutlinedButton.icon(
+                      onPressed: busy ||
+                              listingId
+                                  .isEmpty ||
+                              _offlineMode
                           ? null
-                          : () => _editListing(listing),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.brand,
+                          : () =>
+                              _editListing(
+                                listing,
+                              ),
+                      style: OutlinedButton
+                          .styleFrom(
+                        foregroundColor:
+                            AppColors.brand,
                         side: BorderSide(
-                          color: AppColors.brand.withValues(alpha: 0.35),
+                          color: AppColors
+                              .brand
+                              .withValues(
+                            alpha: 0.35,
+                          ),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            12,
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
                           vertical: 11,
                         ),
                       ),
@@ -1038,7 +1344,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                       label: const Text(
                         'تعديل الإعلان',
                         style: TextStyle(
-                          fontWeight: FontWeight.w800,
+                          fontWeight:
+                              FontWeight.w800,
                         ),
                       ),
                     ),
@@ -1048,22 +1355,40 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                   const SizedBox(height: 10),
                   SizedBox(
                     width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: busy || listingId.isEmpty
+                    child:
+                        OutlinedButton.icon(
+                      onPressed: busy ||
+                              listingId
+                                  .isEmpty ||
+                              _offlineMode
                           ? null
-                          : () => _confirmChangeStatus(
+                          : () =>
+                              _confirmChangeStatus(
                                 listing,
                                 'sold',
                               ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.brand,
+                      style: OutlinedButton
+                          .styleFrom(
+                        foregroundColor:
+                            AppColors.brand,
                         side: BorderSide(
-                          color: AppColors.brand.withValues(alpha: 0.28),
+                          color: AppColors
+                              .brand
+                              .withValues(
+                            alpha: 0.28,
+                          ),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                        shape:
+                            RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius
+                                  .circular(
+                            12,
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(
+                        padding:
+                            const EdgeInsets
+                                .symmetric(
                           vertical: 11,
                         ),
                       ),
@@ -1074,7 +1399,8 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                       label: const Text(
                         'تم البيع',
                         style: TextStyle(
-                          fontWeight: FontWeight.w800,
+                          fontWeight:
+                              FontWeight.w800,
                         ),
                       ),
                     ),
@@ -1084,8 +1410,10 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                   const SizedBox(height: 10),
                   const LinearProgressIndicator(
                     minHeight: 2,
-                    color: AppColors.brand,
-                    backgroundColor: AppColors.brandSoft,
+                    color:
+                        AppColors.brand,
+                    backgroundColor:
+                        AppColors.brandSoft,
                   ),
                 ],
               ],
@@ -1103,7 +1431,9 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
         status: _listings
             .where(
               (listing) =>
-                  (listing['status'] ?? '').toString() == status,
+                  (listing['status'] ?? '')
+                      .toString() ==
+                  status,
             )
             .length,
     };
@@ -1114,21 +1444,27 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     ];
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(
+      margin:
+          const EdgeInsets.only(bottom: 14),
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 12,
         vertical: 10,
       ),
       decoration: AppDecorations.card(),
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
+        scrollDirection:
+            Axis.horizontal,
         child: Row(
           children: filters.map((filter) {
-            final selected = _filter == filter;
-            final count = counts[filter] ?? 0;
+            final selected =
+                _filter == filter;
+            final count =
+                counts[filter] ?? 0;
 
             return Padding(
-              padding: const EdgeInsetsDirectional.only(
+              padding:
+                  const EdgeInsetsDirectional.only(
                 end: 8,
               ),
               child: ChoiceChip(
@@ -1138,15 +1474,24 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                     _filter = filter;
                   });
                 },
-                selectedColor: AppColors.brandSoft,
-                backgroundColor: Colors.white,
+                selectedColor:
+                    AppColors.brandSoft,
+                backgroundColor:
+                    Colors.white,
                 side: BorderSide(
                   color: selected
                       ? AppColors.brand
-                      : AppColors.brand.withValues(alpha: 0.12),
+                      : AppColors.brand
+                          .withValues(
+                          alpha: 0.12,
+                        ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+                shape:
+                    RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(
+                    30,
+                  ),
                 ),
                 label: Text(
                   '${filter == 'all' ? 'الكل' : _statusText(filter)} ($count)',
@@ -1154,11 +1499,16 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                 labelStyle: TextStyle(
                   color: selected
                       ? AppColors.brand
-                      : AppColors.ink.withValues(alpha: 0.70),
+                      : AppColors.ink
+                          .withValues(
+                          alpha: 0.70,
+                        ),
                   fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
+                  fontWeight:
+                      FontWeight.w800,
                 ),
-                checkmarkColor: AppColors.brand,
+                checkmarkColor:
+                    AppColors.brand,
               ),
             );
           }).toList(),
@@ -1168,25 +1518,32 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   }
 
   Widget _buildEmptyState() {
-    final isFiltered = _filter != 'all';
+    final isFiltered =
+        _filter != 'all';
 
     return Center(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding:
+            const EdgeInsets.all(24),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment:
+              MainAxisAlignment.center,
           children: [
             Container(
               width: 94,
               height: 94,
-              decoration: const BoxDecoration(
-                color: AppColors.brandSoft,
+              decoration:
+                  const BoxDecoration(
+                color:
+                    AppColors.brandSoft,
                 shape: BoxShape.circle,
               ),
               child: const Icon(
-                Icons.inventory_2_outlined,
+                Icons
+                    .inventory_2_outlined,
                 size: 44,
-                color: AppColors.brand,
+                color:
+                    AppColors.brand,
               ),
             ),
             const SizedBox(height: 20),
@@ -1194,11 +1551,13 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
               isFiltered
                   ? 'لا توجد إعلانات بهذه الحالة'
                   : 'لا توجد لديك إعلانات بعد',
-              textAlign: TextAlign.center,
+              textAlign:
+                  TextAlign.center,
               style: const TextStyle(
                 color: AppColors.ink,
                 fontSize: 19,
-                fontWeight: FontWeight.w900,
+                fontWeight:
+                    FontWeight.w900,
               ),
             ),
             const SizedBox(height: 9),
@@ -1206,9 +1565,13 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
               isFiltered
                   ? 'جرّب اختيار حالة أخرى من الفلاتر أعلاه.'
                   : 'ابدأ بإضافة أول إعلان لك في دلالة شبشة.',
-              textAlign: TextAlign.center,
+              textAlign:
+                  TextAlign.center,
               style: TextStyle(
-                color: AppColors.ink.withValues(alpha: 0.62),
+                color: AppColors.ink
+                    .withValues(
+                  alpha: 0.62,
+                ),
                 fontSize: 13,
                 height: 1.6,
               ),
@@ -1216,23 +1579,36 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
             if (!isFiltered) ...[
               const SizedBox(height: 20),
               FilledButton.icon(
-                onPressed: _addListing,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.brand,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
+                onPressed:
+                    _addListing,
+                style: FilledButton
+                    .styleFrom(
+                  backgroundColor:
+                      AppColors.brand,
+                  foregroundColor:
+                      Colors.white,
+                  padding:
+                      const EdgeInsets
+                          .symmetric(
                     horizontal: 20,
                     vertical: 12,
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(
+                      14,
+                    ),
                   ),
                 ),
-                icon: const Icon(Icons.add_rounded),
+                icon: const Icon(
+                  Icons.add_rounded,
+                ),
                 label: const Text(
                   'إضافة إعلان',
                   style: TextStyle(
-                    fontWeight: FontWeight.w900,
+                    fontWeight:
+                        FontWeight.w900,
                   ),
                 ),
               ),
@@ -1246,81 +1622,165 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   Widget _buildErrorState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding:
+            const EdgeInsets.all(24),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(22),
+          padding:
+              const EdgeInsets.all(22),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius:
+                BorderRadius.circular(20),
             border: Border.all(
-              color: Colors.red.withValues(alpha: 0.12),
+              color: Colors.red
+                  .withValues(
+                alpha: 0.12,
+              ),
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.brand.withValues(alpha: 0.06),
+                color: AppColors.brand
+                    .withValues(
+                  alpha: 0.06,
+                ),
                 blurRadius: 14,
-                offset: const Offset(0, 5),
+                offset:
+                    const Offset(0, 5),
               ),
             ],
           ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize:
+                MainAxisSize.min,
             children: [
               Container(
                 width: 70,
                 height: 70,
-                decoration: BoxDecoration(
-                  color: Colors.red.withValues(alpha: 0.07),
-                  shape: BoxShape.circle,
+                decoration:
+                    BoxDecoration(
+                  color: Colors.red
+                      .withValues(
+                    alpha: 0.07,
+                  ),
+                  shape:
+                      BoxShape.circle,
                 ),
                 child: Icon(
-                  Icons.cloud_off_outlined,
-                  color: Colors.red.shade700,
+                  Icons
+                      .cloud_off_outlined,
+                  color:
+                      Colors.red.shade700,
                   size: 34,
                 ),
               ),
               const SizedBox(height: 16),
               const Text(
                 'تعذر تحميل إعلاناتك',
-                textAlign: TextAlign.center,
+                textAlign:
+                    TextAlign.center,
                 style: TextStyle(
                   color: AppColors.ink,
                   fontSize: 17,
-                  fontWeight: FontWeight.w900,
+                  fontWeight:
+                      FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 8),
               Text(
-                _error ?? 'حدث خطأ غير متوقع.',
-                textAlign: TextAlign.center,
+                _error ??
+                    'حدث خطأ غير متوقع.',
+                textAlign:
+                    TextAlign.center,
                 style: TextStyle(
-                  color: AppColors.ink.withValues(alpha: 0.62),
+                  color: AppColors.ink
+                      .withValues(
+                    alpha: 0.62,
+                  ),
                   fontSize: 12,
                   height: 1.5,
                 ),
               ),
               const SizedBox(height: 18),
               FilledButton.icon(
-                onPressed: _loadListings,
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.brand,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(13),
+                onPressed:
+                    _loadListings,
+                style: FilledButton
+                    .styleFrom(
+                  backgroundColor:
+                      AppColors.brand,
+                  foregroundColor:
+                      Colors.white,
+                  shape:
+                      RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(
+                      13,
+                    ),
                   ),
                 ),
-                icon: const Icon(Icons.refresh_rounded),
+                icon: const Icon(
+                  Icons.refresh_rounded,
+                ),
                 label: const Text(
                   'إعادة المحاولة',
                   style: TextStyle(
-                    fontWeight: FontWeight.w800,
+                    fontWeight:
+                        FontWeight.w800,
                   ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildOfflineBanner() {
+    if (!_offlineMode || _listings.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      margin:
+          const EdgeInsets.only(bottom: 12),
+      padding:
+          const EdgeInsets.symmetric(
+        horizontal: 12,
+        vertical: 9,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.orange
+            .withValues(alpha: 0.10),
+        borderRadius:
+            BorderRadius.circular(13),
+        border: Border.all(
+          color: AppColors.orange
+              .withValues(alpha: 0.20),
+        ),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.cloud_off_outlined,
+            color: AppColors.orange,
+            size: 19,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'أنت غير متصل — هذه آخر نسخة محفوظة من إعلاناتك.',
+              style: TextStyle(
+                color: AppColors.ink
+                    .withValues(alpha: 0.75),
+                fontSize: 11.5,
+                fontWeight:
+                    FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1334,18 +1794,23 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       );
     }
 
-    if (_error != null && _listings.isEmpty) {
+    if (_error != null &&
+        _listings.isEmpty) {
       return _buildErrorState();
     }
 
-    final filteredListings = _filter == 'all'
-        ? _listings
-        : _listings
-            .where(
-              (listing) =>
-                  (listing['status'] ?? '').toString() == _filter,
-            )
-            .toList();
+    final filteredListings =
+        _filter == 'all'
+            ? _listings
+            : _listings
+                .where(
+                  (listing) =>
+                      (listing['status'] ??
+                              '')
+                          .toString() ==
+                      _filter,
+                )
+                .toList();
 
     if (_listings.isEmpty) {
       return _buildEmptyState();
@@ -1356,32 +1821,49 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
       backgroundColor: Colors.white,
       onRefresh: _loadListings,
       child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
+        physics:
+            const AlwaysScrollableScrollPhysics(),
+        padding:
+            const EdgeInsets.fromLTRB(
           14,
           14,
           14,
           100,
         ),
         children: [
+          _buildOfflineBanner(),
           Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.all(16),
+            margin:
+                const EdgeInsets.only(
+              bottom: 14,
+            ),
+            padding:
+                const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient:
+                  const LinearGradient(
                 colors: [
                   AppColors.brand,
                   AppColors.brandDark,
                 ],
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
+                begin:
+                    Alignment.topRight,
+                end:
+                    Alignment.bottomLeft,
               ),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius:
+                  BorderRadius.circular(
+                20,
+              ),
               boxShadow: [
                 BoxShadow(
-                  color: AppColors.brand.withValues(alpha: 0.18),
+                  color: AppColors.brand
+                      .withValues(
+                    alpha: 0.18,
+                  ),
                   blurRadius: 16,
-                  offset: const Offset(0, 7),
+                  offset:
+                      const Offset(0, 7),
                 ),
               ],
             ),
@@ -1390,12 +1872,20 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                 Container(
                   width: 48,
                   height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(15),
+                  decoration:
+                      BoxDecoration(
+                    color: Colors.white
+                        .withValues(
+                      alpha: 0.14,
+                    ),
+                    borderRadius:
+                        BorderRadius.circular(
+                      15,
+                    ),
                   ),
                   child: const Icon(
-                    Icons.storefront_outlined,
+                    Icons
+                        .storefront_outlined,
                     color: Colors.white,
                     size: 26,
                   ),
@@ -1403,23 +1893,30 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment:
+                        CrossAxisAlignment.start,
                     children: [
                       const Text(
                         'إعلاناتك',
-                        style: TextStyle(
-                          color: Colors.white,
+                        style:
+                            TextStyle(
+                          color:
+                              Colors.white,
                           fontSize: 16,
-                          fontWeight: FontWeight.w900,
+                          fontWeight:
+                              FontWeight.w900,
                         ),
                       ),
                       const SizedBox(height: 3),
                       Text(
                         '${_listings.length} إعلان${_listings.length == 1 ? '' : 'ات'} في حسابك',
-                        style: const TextStyle(
-                          color: Colors.white70,
+                        style:
+                            const TextStyle(
+                          color:
+                              Colors.white70,
                           fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
+                          fontWeight:
+                              FontWeight.w600,
                         ),
                       ),
                     ],
@@ -1427,10 +1924,14 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                 ),
                 IconButton(
                   tooltip: 'تحديث',
-                  onPressed: _loading ? null : _loadListings,
-                  icon: const Icon(
+                  onPressed: _loading
+                      ? null
+                      : _loadListings,
+                  icon:
+                      const Icon(
                     Icons.refresh_rounded,
-                    color: Colors.white,
+                    color:
+                        Colors.white,
                   ),
                 ),
               ],
@@ -1440,7 +1941,9 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
           if (filteredListings.isEmpty)
             _buildEmptyState()
           else
-            ...filteredListings.map(_buildListingCard),
+            ...filteredListings.map(
+              _buildListingCard,
+            ),
         ],
       ),
     );
@@ -1449,26 +1952,33 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection:
+          TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: AppColors.pageBackground,
+        backgroundColor:
+            AppColors.pageBackground,
         appBar: AppBar(
-          backgroundColor: AppColors.brand,
-          foregroundColor: Colors.white,
+          backgroundColor:
+              AppColors.brand,
+          foregroundColor:
+              Colors.white,
           elevation: 0,
           centerTitle: true,
           title: const Text(
             'إعلاناتي',
             style: TextStyle(
               color: Colors.white,
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
               fontSize: 18,
             ),
           ),
           actions: [
             IconButton(
               tooltip: 'تحديث',
-              onPressed: _loading ? null : _loadListings,
+              onPressed: _loading
+                  ? null
+                  : _loadListings,
               icon: const Icon(
                 Icons.refresh_rounded,
                 color: Colors.white,
@@ -1477,16 +1987,22 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
           ],
         ),
         body: _buildBody(),
-        floatingActionButton: FloatingActionButton.extended(
+        floatingActionButton:
+            FloatingActionButton.extended(
           onPressed: _addListing,
-          backgroundColor: AppColors.brand,
-          foregroundColor: Colors.white,
+          backgroundColor:
+              AppColors.brand,
+          foregroundColor:
+              Colors.white,
           elevation: 5,
-          icon: const Icon(Icons.add_rounded),
+          icon: const Icon(
+            Icons.add_rounded,
+          ),
           label: const Text(
             'إعلان جديد',
             style: TextStyle(
-              fontWeight: FontWeight.w900,
+              fontWeight:
+                  FontWeight.w900,
             ),
           ),
         ),
