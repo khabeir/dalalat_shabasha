@@ -91,114 +91,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   int _totalVisitSessions = 0;
 
   // =========================
-  // واجهة إحصائيات الزوار
-  // =========================
-
-  Widget _buildVisitorStatisticsCard() {
-    final total =
-        NumberFormat('#,##0', 'en').format(_totalVisitSessions);
-
-    Widget item({
-      required IconData icon,
-      required String value,
-      required String label,
-    }) {
-      return Expanded(
-        child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 8,
-            vertical: 10,
-          ),
-          decoration: AppDecorations.softCard(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 21,
-                color: AppColors.brand,
-              ),
-              const SizedBox(height: 5),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.ink,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade700,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        12,
-        12,
-        12,
-        0,
-      ),
-      padding: const EdgeInsets.all(10),
-      decoration: AppDecorations.card(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text(
-            'إحصائيات الزيارات',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 9),
-          Row(
-            children: [
-              item(
-                icon: Icons.person_outline,
-                value: '$_currentAnonymousVisitors',
-                label: 'زوار متصلون',
-              ),
-              const SizedBox(width: 7),
-              item(
-                icon: Icons.people_outline,
-                value: '$_currentOnlineMembers',
-                label: 'أعضاء متصلون',
-              ),
-              const SizedBox(width: 7),
-              item(
-                icon: Icons.circle,
-                value: '$_currentOnlineTotal',
-                label: 'إجمالي المتصلين',
-              ),
-              const SizedBox(width: 7),
-              item(
-                icon: Icons.visibility_outlined,
-                value: total,
-                label: 'الزيارات الكلية',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  // =========================
   // دورة حياة الصفحة
   // =========================
 
@@ -3283,22 +3175,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       body =
           _buildLocked();
     } else {
-      final tabs =
-          TabBarView(
+      body = TabBarView(
         children: [
           _buildPendingListingsTab(),
           _buildReportsTab(),
           _buildApprovedListingsTab(),
           _buildPromotionsTab(),
-        ],
-      );
-
-      body = Column(
-        children: [
-          _buildVisitorStatisticsCard(),
-          Expanded(
-            child: tabs,
-          ),
         ],
       );
     }
