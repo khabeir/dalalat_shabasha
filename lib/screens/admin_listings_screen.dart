@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show NumberFormat;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'admin_notifications_screen.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_decorations.dart';
 import 'admin_banners_screen.dart';
@@ -2288,6 +2289,21 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                   );
                 },
               ),
+              IconButton(
+  tooltip: 'إشعارات الإدارة',
+  icon: const Icon(
+    Icons.notifications_active_outlined,
+  ),
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            const AdminNotificationsScreen(),
+      ),
+    );
+  },
+),
               IconButton(
                 tooltip: 'البنر الإعلاني',
                 icon: const Icon(Icons.campaign_outlined),
