@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show NumberFormat;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/visitor_stats_service.dart';
 import 'admin_notifications_screen.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_decorations.dart';
@@ -44,11 +45,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       TextEditingController();
 
   Timer? _debounce;
+  Timer? _visitorStatsTimer;
 
   bool _isCheckingAdmin = true;
   bool _isCurrentUserAdmin = false;
   bool _isLoadingDashboard = true;
   bool _dashboardLoadFailed = false;
+
+  bool _isLoadingVisitorStats = false;
 
   final Set<int> _processingListingIds = {};
 
@@ -78,6 +82,123 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       NumberFormat('#,##0', 'en');
 
   // =========================
+  // حالة الصفحة والبيانات
+  // =========================
+
+  int _currentAnonymousVisitors = 0;
+  int _currentOnlineMembers = 0;
+  int _currentOnlineTotal = 0;
+  int _totalVisitSessions = 0;
+
+  // =========================
+  // واجهة إحصائيات الزوار
+  // =========================
+
+  Widget _buildVisitorStatisticsCard() {
+    final total =
+        NumberFormat('#,##0', 'en').format(_totalVisitSessions);
+
+    Widget item({
+      required IconData icon,
+      required String value,
+      required String label,
+    }) {
+      return Expanded(
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 10,
+          ),
+          decoration: AppDecorations.softCard(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 21,
+                color: AppColors.brand,
+              ),
+              const SizedBox(height: 5),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        12,
+        12,
+        12,
+        0,
+      ),
+      padding: const EdgeInsets.all(10),
+      decoration: AppDecorations.card(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'إحصائيات الزيارات',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              color: AppColors.ink,
+            ),
+          ),
+          const SizedBox(height: 9),
+          Row(
+            children: [
+              item(
+                icon: Icons.person_outline,
+                value: '$_currentAnonymousVisitors',
+                label: 'زوار متصلون',
+              ),
+              const SizedBox(width: 7),
+              item(
+                icon: Icons.people_outline,
+                value: '$_currentOnlineMembers',
+                label: 'أعضاء متصلون',
+              ),
+              const SizedBox(width: 7),
+              item(
+                icon: Icons.circle,
+                value: '$_currentOnlineTotal',
+                label: 'إجمالي المتصلين',
+              ),
+              const SizedBox(width: 7),
+              item(
+                icon: Icons.visibility_outlined,
+                value: total,
+                label: 'الزيارات الكلية',
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // =========================
   // دورة حياة الصفحة
   // =========================
 
@@ -90,6 +211,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _visitorStatsTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -332,6 +454,59 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   // =========================
+  // منطق إحصائيات الزوار
+  // =========================
+
+  Future<void> _loadDashboardVisitorStats() async {
+    if (!_isCurrentUserAdmin || _isLoadingVisitorStats) {
+      return;
+    }
+
+    _isLoadingVisitorStats = true;
+
+    if (mounted) {
+      setState(() {});
+    }
+
+    try {
+      final stats =
+          await VisitorStatsService.instance.getStats();
+
+      if (!mounted) return;
+
+      setState(() {
+        _currentAnonymousVisitors =
+            stats['anonymous'] ?? 0;
+        _currentOnlineMembers =
+            stats['members'] ?? 0;
+        _currentOnlineTotal =
+            stats['current'] ?? 0;
+        _totalVisitSessions =
+            stats['total'] ?? 0;
+      });
+    } catch (e) {
+      debugPrint(
+        'visitor stats error: $e',
+      );
+    } finally {
+      _isLoadingVisitorStats = false;
+
+      if (mounted) {
+        setState(() {});
+      }
+    }
+  }
+
+  void _startVisitorStatsRefreshTimer() {
+    _visitorStatsTimer?.cancel();
+
+    _visitorStatsTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _loadDashboardVisitorStats(),
+    );
+  }
+
+  // =========================
   // تحميل بيانات لوحة التحكم
   // =========================
 
@@ -366,6 +541,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (!_isCurrentUserAdmin) return;
 
     await _loadCategories();
+    await _loadDashboardVisitorStats();
+
+    _startVisitorStatsRefreshTimer();
+
     await _loadDashboardData(
       showSpinner: false,
     );
@@ -3116,12 +3295,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
       body = Column(
         children: [
+          _buildVisitorStatisticsCard(),
           Expanded(
             child: tabs,
           ),
         ],
       );
     }
+
+    final formattedTotalVisits =
+        NumberFormat(
+      '#,##0',
+      'en',
+    ).format(_totalVisitSessions);
 
     return Directionality(
       textDirection:
@@ -3153,10 +3339,87 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                         FontWeight.w900,
                   ),
                 ),
+                const SizedBox(
+                  height: 2,
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 2,
+                  children: [
+                    Text(
+                      '👤 $_currentAnonymousVisitors زائر',
+                      style:
+                          const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight:
+                            FontWeight.w700,
+                        color:
+                            Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '👥 $_currentOnlineMembers عضو',
+                      style:
+                          const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight:
+                            FontWeight.w700,
+                        color:
+                            Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '🟢 $_currentOnlineTotal متصل',
+                      style:
+                          const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight:
+                            FontWeight.w700,
+                        color:
+                            Colors.white,
+                      ),
+                    ),
+                    Text(
+                      '📊 $formattedTotalVisits زيارة',
+                      style:
+                          const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight:
+                            FontWeight.w600,
+                        color:
+                            Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
             centerTitle: false,
             actions: [
+              IconButton(
+                tooltip:
+                    'تحديث إحصائيات الزيارات',
+                icon:
+                    _isLoadingVisitorStats
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child:
+                                CircularProgressIndicator(
+                              strokeWidth:
+                                  2,
+                              color:
+                                  Colors.white,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.refresh,
+                          ),
+                onPressed:
+                    _isLoadingVisitorStats
+                        ? null
+                        : _loadDashboardVisitorStats,
+              ),
               IconButton(
                 tooltip:
                     'الأعضاء',
