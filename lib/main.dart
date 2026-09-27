@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import 'services/visitor_tracking_service.dart';
 import 'screens/home_screen.dart';
 
 Future<void> main() async {
