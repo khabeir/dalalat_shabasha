@@ -29,15 +29,15 @@ class _ReportGroup {
       reports.map((report) => report['reporter_id']).toSet().length;
 }
 
-class AdminListingsScreen extends StatefulWidget {
-  const AdminListingsScreen({super.key});
+class AdminDashboardScreen extends StatefulWidget {
+  const AdminDashboardScreen({super.key});
 
   @override
-  State<AdminListingsScreen> createState() => _AdminListingsScreenState();
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminListingsScreenState extends State<AdminListingsScreen> {
-  static const _approvedPageSize = 30;
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  static const _approvedListingsPageSize = 30;
 
   final SupabaseClient _supabase = Supabase.instance.client;
 
@@ -47,32 +47,32 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   Timer? _debounce;
   Timer? _visitorStatsTimer;
 
-  bool _checkingAdmin = true;
-  bool _isAdmin = false;
-  bool _loading = true;
-  bool _loadFailed = false;
+  bool _isCheckingAdmin = true;
+  bool _isCurrentUserAdmin = false;
+  bool _isLoadingDashboard = true;
+  bool _dashboardLoadFailed = false;
 
-  bool _loadingVisitorStats = false;
+  bool _isLoadingVisitorStats = false;
 
-  final Set<int> _busyIds = {};
+  final Set<int> _processingListingIds = {};
 
-  List<Map<String, dynamic>> _pending = [];
-  List<Map<String, dynamic>> _approved = [];
-  List<Map<String, dynamic>> _promotions = [];
+  List<Map<String, dynamic>> _pendingListings = [];
+  List<Map<String, dynamic>> _approvedListings = [];
+  List<Map<String, dynamic>> _activePromotions = [];
 
-  List<_ReportGroup> _reportGroups = [];
+  List<_ReportGroup> _listingReportGroups = [];
 
   String? _reportsError;
 
-  Map<int, String> _categoryNames = {};
-  final Map<int, List<String>> _imageUrls = {};
-  final Map<String, String> _sellerNames = {};
+  Map<int, String> _categoryNamesById = {};
+  final Map<int, List<String>> _listingImageUrls = {};
+  final Map<String, String> _sellerNamesById = {};
 
-  String _approvedQuery = '';
+  String _approvedSearchQuery = '';
 
-  int _approvedPage = 0;
-  bool _approvedHasMore = true;
-  bool _approvedLoadingMore = false;
+  int _approvedListingsPage = 0;
+  bool _hasMoreApprovedListings = true;
+  bool _isLoadingMoreApproved = false;
 
   // اسم Bucket الصور.
   static const String _bucket = 'listing-images';
@@ -82,17 +82,21 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       NumberFormat('#,##0', 'en');
 
   // =========================
-  // إحصائيات الزوار
+  // حالة الصفحة والبيانات
   // =========================
 
-  int _anonymousVisitors = 0;
-  int _currentMembers = 0;
-  int _currentTotal = 0;
-  int _totalVisits = 0;
+  int _currentAnonymousVisitors = 0;
+  int _currentOnlineMembers = 0;
+  int _currentOnlineTotal = 0;
+  int _totalVisitSessions = 0;
 
-  Widget _buildVisitorStatsCard() {
+  // =========================
+  // واجهة إحصائيات الزوار
+  // =========================
+
+  Widget _buildVisitorStatisticsCard() {
     final total =
-        NumberFormat('#,##0', 'en').format(_totalVisits);
+        NumberFormat('#,##0', 'en').format(_totalVisitSessions);
 
     Widget item({
       required IconData icon,
@@ -166,19 +170,19 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
             children: [
               item(
                 icon: Icons.person_outline,
-                value: '$_anonymousVisitors',
+                value: '$_currentAnonymousVisitors',
                 label: 'زوار متصلون',
               ),
               const SizedBox(width: 7),
               item(
                 icon: Icons.people_outline,
-                value: '$_currentMembers',
+                value: '$_currentOnlineMembers',
                 label: 'أعضاء متصلون',
               ),
               const SizedBox(width: 7),
               item(
                 icon: Icons.circle,
-                value: '$_currentTotal',
+                value: '$_currentOnlineTotal',
                 label: 'إجمالي المتصلين',
               ),
               const SizedBox(width: 7),
@@ -213,7 +217,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   }
 
   // =========================
-  // أدوات مساعدة
+  // الأدوات المساعدة
   // =========================
 
   void _showSnack(
@@ -433,7 +437,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     return listing['promoted_listing_id'] != null;
   }
 
-  void _openListing(
+  void _openListingDetails(
     Map<String, dynamic> listing,
   ) {
     final id = listing['id'];
@@ -450,15 +454,15 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   }
 
   // =========================
-  // إحصائيات الزوار
+  // منطق إحصائيات الزوار
   // =========================
 
-  Future<void> _loadVisitorStats() async {
-    if (!_isAdmin || _loadingVisitorStats) {
+  Future<void> _loadDashboardVisitorStats() async {
+    if (!_isCurrentUserAdmin || _isLoadingVisitorStats) {
       return;
     }
 
-    _loadingVisitorStats = true;
+    _isLoadingVisitorStats = true;
 
     if (mounted) {
       setState(() {});
@@ -471,13 +475,13 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       if (!mounted) return;
 
       setState(() {
-        _anonymousVisitors =
+        _currentAnonymousVisitors =
             stats['anonymous'] ?? 0;
-        _currentMembers =
+        _currentOnlineMembers =
             stats['members'] ?? 0;
-        _currentTotal =
+        _currentOnlineTotal =
             stats['current'] ?? 0;
-        _totalVisits =
+        _totalVisitSessions =
             stats['total'] ?? 0;
       });
     } catch (e) {
@@ -485,7 +489,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         'visitor stats error: $e',
       );
     } finally {
-      _loadingVisitorStats = false;
+      _isLoadingVisitorStats = false;
 
       if (mounted) {
         setState(() {});
@@ -493,17 +497,17 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     }
   }
 
-  void _startVisitorStatsTimer() {
+  void _startVisitorStatsRefreshTimer() {
     _visitorStatsTimer?.cancel();
 
     _visitorStatsTimer = Timer.periodic(
       const Duration(minutes: 1),
-      (_) => _loadVisitorStats(),
+      (_) => _loadDashboardVisitorStats(),
     );
   }
 
   // =========================
-  // تحميل البيانات
+  // تحميل بيانات لوحة التحكم
   // =========================
 
   Future<void> _init() async {
@@ -518,30 +522,30 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
             .eq('id', user.id)
             .maybeSingle();
 
-        _isAdmin =
+        _isCurrentUserAdmin =
             profile?['role'] == 'admin';
       }
     } catch (e) {
       debugPrint(
         'admin check error: $e',
       );
-      _isAdmin = false;
+      _isCurrentUserAdmin = false;
     }
 
     if (!mounted) return;
 
     setState(
-      () => _checkingAdmin = false,
+      () => _isCheckingAdmin = false,
     );
 
-    if (!_isAdmin) return;
+    if (!_isCurrentUserAdmin) return;
 
     await _loadCategories();
-    await _loadVisitorStats();
+    await _loadDashboardVisitorStats();
 
-    _startVisitorStatsTimer();
+    _startVisitorStatsRefreshTimer();
 
-    await _loadAll(
+    await _loadDashboardData(
       showSpinner: false,
     );
   }
@@ -567,7 +571,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         }
       }
 
-      _categoryNames = names;
+      _categoryNamesById = names;
     } catch (e) {
       debugPrint(
         'loadCategories error: $e',
@@ -575,38 +579,38 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     }
   }
 
-  Future<void> _loadAll({
+  Future<void> _loadDashboardData({
     bool showSpinner = true,
   }) async {
     if (showSpinner && mounted) {
       setState(
-        () => _loading = true,
+        () => _isLoadingDashboard = true,
       );
     }
 
-    _loadFailed = false;
+    _dashboardLoadFailed = false;
 
     await Future.wait([
-      _loadPending(),
-      _loadApproved(reset: true),
-      _loadPromotions(),
-      _loadReports(),
+      _loadPendingListings(),
+      _loadApprovedListings(reset: true),
+      _loadActivePromotions(),
+      _loadListingReports(),
     ]);
 
     if (!mounted) return;
 
     setState(
-      () => _loading = false,
+      () => _isLoadingDashboard = false,
     );
 
-    if (_loadFailed) {
+    if (_dashboardLoadFailed) {
       _showSnack(
         'تعذر تحميل بعض البيانات، اسحب للتحديث',
       );
     }
   }
 
-  Future<void> _loadMeta(
+  Future<void> _loadListingMetadata(
     List<Map<String, dynamic>> listings,
   ) async {
     final listingIds = listings
@@ -623,12 +627,12 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         .toList();
 
     await Future.wait([
-      _loadImageUrls(listingIds),
-      _loadSellerNames(sellerIds),
+      _loadListingImages(listingIds),
+      _loadListingSellerNames(sellerIds),
     ]);
   }
 
-  Future<void> _loadImageUrls(
+  Future<void> _loadListingImages(
     List<int> listingIds,
   ) async {
     if (listingIds.isEmpty) return;
@@ -677,7 +681,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
             .add(url);
       }
 
-      _imageUrls.addAll(grouped);
+      _listingImageUrls.addAll(grouped);
     } catch (e) {
       debugPrint(
         'admin images error: $e',
@@ -685,7 +689,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     }
   }
 
-  Future<void> _loadSellerNames(
+  Future<void> _loadListingSellerNames(
     List<String> sellerIds,
   ) async {
     if (sellerIds.isEmpty) return;
@@ -710,7 +714,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                 '';
 
         if (name.isNotEmpty) {
-          _sellerNames[
+          _sellerNamesById[
               row['id'].toString()] = name;
         }
       }
@@ -721,7 +725,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     }
   }
 
-  Future<void> _loadPending() async {
+  Future<void> _loadPendingListings() async {
     try {
       final response = await _supabase
           .from('listings')
@@ -737,18 +741,18 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         response,
       );
 
-      await _loadMeta(rows);
+      await _loadListingMetadata(rows);
 
       if (!mounted) return;
 
       setState(
-        () => _pending = rows,
+        () => _pendingListings = rows,
       );
     } catch (e) {
       debugPrint(
         'loadPending error: $e',
       );
-      _loadFailed = true;
+      _dashboardLoadFailed = true;
     }
   }
 
@@ -812,23 +816,23 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     }
   }
 
-  Future<void> _loadApproved({
+  Future<void> _loadApprovedListings({
     bool reset = true,
   }) async {
     if (!reset &&
-        (_approvedLoadingMore ||
-            !_approvedHasMore)) {
+        (_isLoadingMoreApproved ||
+            !_hasMoreApprovedListings)) {
       return;
     }
 
     final page =
-        reset ? 0 : _approvedPage;
+        reset ? 0 : _approvedListingsPage;
 
-    final query = _approvedQuery;
+    final query = _approvedSearchQuery;
 
     if (!reset && mounted) {
       setState(
-        () => _approvedLoadingMore = true,
+        () => _isLoadingMoreApproved = true,
       );
     }
 
@@ -849,7 +853,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       }
 
       final from =
-          page * _approvedPageSize;
+          page * _approvedListingsPageSize;
 
       final response = await request
           .order(
@@ -858,7 +862,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
           )
           .range(
             from,
-            from + _approvedPageSize - 1,
+            from + _approvedListingsPageSize - 1,
           );
 
       final rows =
@@ -868,41 +872,41 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
 
       await Future.wait([
         _attachPromotions(rows),
-        _loadMeta(rows),
+        _loadListingMetadata(rows),
       ]);
 
       if (!mounted ||
-          query != _approvedQuery) {
+          query != _approvedSearchQuery) {
         return;
       }
 
       setState(() {
-        _approved = reset
+        _approvedListings = reset
             ? rows
             : [
-                ..._approved,
+                ..._approvedListings,
                 ...rows,
               ];
 
-        _approvedPage =
+        _approvedListingsPage =
             page + 1;
 
-        _approvedHasMore =
+        _hasMoreApprovedListings =
             rows.length ==
-                _approvedPageSize;
+                _approvedListingsPageSize;
 
-        _approvedLoadingMore = false;
+        _isLoadingMoreApproved = false;
       });
     } catch (e) {
       debugPrint(
         'loadApproved error: $e',
       );
 
-      _loadFailed = true;
+      _dashboardLoadFailed = true;
 
       if (mounted) {
         setState(
-          () => _approvedLoadingMore =
+          () => _isLoadingMoreApproved =
               false,
         );
       }
@@ -923,23 +927,23 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
             value.trim();
 
         if (!mounted ||
-            query == _approvedQuery) {
+            query == _approvedSearchQuery) {
           return;
         }
 
         setState(
-          () => _approvedQuery =
+          () => _approvedSearchQuery =
               query,
         );
 
-        _loadApproved(
+        _loadApprovedListings(
           reset: true,
         );
       },
     );
   }
 
-  Future<void> _loadPromotions() async {
+  Future<void> _loadActivePromotions() async {
     try {
       final now =
           DateTime.now()
@@ -982,7 +986,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       if (ids.isEmpty) {
         if (mounted) {
           setState(
-            () => _promotions = [],
+            () => _activePromotions = [],
           );
         }
         return;
@@ -1037,22 +1041,22 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         items.add(item);
       }
 
-      await _loadMeta(items);
+      await _loadListingMetadata(items);
 
       if (!mounted) return;
 
       setState(
-        () => _promotions = items,
+        () => _activePromotions = items,
       );
     } catch (e) {
       debugPrint(
         'loadPromotions error: $e',
       );
-      _loadFailed = true;
+      _dashboardLoadFailed = true;
     }
   }
 
-  Future<void> _loadReports() async {
+  Future<void> _loadListingReports() async {
     try {
       final response = await _supabase
           .from('reports')
@@ -1112,7 +1116,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       if (grouped.isEmpty) {
         if (mounted) {
           setState(() {
-            _reportGroups = [];
+            _listingReportGroups = [];
             _reportsError = null;
           });
         }
@@ -1137,7 +1141,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
             l['status'] == 'pending',
       ).toList();
 
-      await _loadMeta(listings);
+      await _loadListingMetadata(listings);
 
       final groups =
           <_ReportGroup>[];
@@ -1169,7 +1173,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       if (!mounted) return;
 
       setState(() {
-        _reportGroups = groups;
+        _listingReportGroups = groups;
         _reportsError = null;
       });
     } catch (e) {
@@ -1189,7 +1193,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   }
 
   // =========================
-  // المراجعة
+  // مراجعة الإعلانات
   // =========================
 
   Future<void> _approve(
@@ -1236,7 +1240,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         listing['id'];
 
     if (id is! int ||
-        _busyIds.contains(id)) {
+        _processingListingIds.contains(id)) {
       return;
     }
 
@@ -1262,7 +1266,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     }
 
     setState(
-      () => _busyIds.add(id),
+      () => _processingListingIds.add(id),
     );
 
     try {
@@ -1327,7 +1331,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         ),
       );
 
-      await _loadAll(
+      await _loadDashboardData(
         showSpinner: false,
       );
     } catch (e) {
@@ -1341,7 +1345,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     } finally {
       if (mounted) {
         setState(
-          () => _busyIds.remove(id),
+          () => _processingListingIds.remove(id),
         );
       }
     }
@@ -1367,7 +1371,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         'أُعيد الإعلان إلى قيد المراجعة',
       );
 
-      await _loadAll(
+      await _loadDashboardData(
         showSpinner: false,
       );
     } catch (e) {
@@ -1382,7 +1386,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   }
 
   // =========================
-  // البلاغات
+  // إدارة البلاغات
   // =========================
 
   Future<void> _dismissReports(
@@ -1424,7 +1428,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         'تم تجاهل البلاغات',
       );
 
-      await _loadReports();
+      await _loadListingReports();
     } catch (e) {
       debugPrint(
         'dismissReports error: $e',
@@ -1437,7 +1441,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   }
 
   // =========================
-  // الإعلانات التجارية
+  // إدارة الإعلانات المميزة
   // =========================
 
   Future<void> _promote(
@@ -1620,7 +1624,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         'تم تفعيل الإعلان التجاري لمدة $days يوم',
       );
 
-      await _loadAll(
+      await _loadDashboardData(
         showSpinner: false,
       );
     } catch (e) {
@@ -1671,7 +1675,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         'تم إيقاف الإعلان التجاري',
       );
 
-      await _loadAll(
+      await _loadDashboardData(
         showSpinner: false,
       );
     } catch (e) {
@@ -1686,7 +1690,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   }
 
   // =========================
-  // مكونات الواجهة
+  // مكونات واجهة الإعلانات
   // =========================
 
   Widget _thumb(
@@ -1804,7 +1808,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     );
   }
 
-  Widget _buildCard(
+  Widget _buildListingCard(
     Map<String, dynamic> listing, {
     required List<Widget> actions,
     bool showAllImages = false,
@@ -1814,13 +1818,13 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         listing['id'];
 
     final images = id is int
-        ? (_imageUrls[id] ??
+        ? (_listingImageUrls[id] ??
             const <String>[])
         : const <String>[];
 
     final busy =
         id is int &&
-            _busyIds.contains(id);
+            _processingListingIds.contains(id);
 
     final title =
         listing['title']
@@ -1847,7 +1851,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
             '';
 
     final seller =
-        _sellerNames[
+        _sellerNamesById[
             listing['seller_id']
                 ?.toString()];
 
@@ -1856,7 +1860,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
 
     final category =
         categoryId is int
-            ? _categoryNames[
+            ? _categoryNamesById[
                 categoryId]
             : null;
 
@@ -1899,7 +1903,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         onTap: busy
             ? null
             : () =>
-                _openListing(
+                _openListingDetails(
               listing,
             ),
         child: Column(
@@ -2232,7 +2236,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       style:
           _compactOutlinedStyle,
       onPressed: () =>
-          _openListing(
+          _openListingDetails(
         listing,
       ),
       icon: const Icon(
@@ -2244,7 +2248,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     );
   }
 
-  Widget _buildPendingCard(
+  Widget _buildPendingListingCard(
     Map<String, dynamic> listing,
   ) {
     final id =
@@ -2252,9 +2256,9 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
 
     final busy =
         id is int &&
-            _busyIds.contains(id);
+            _processingListingIds.contains(id);
 
-    return _buildCard(
+    return _buildListingCard(
       listing,
       showAllImages: true,
       actions: [
@@ -2315,7 +2319,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     );
   }
 
-  Widget _buildApprovedCard(
+  Widget _buildApprovedListingCard(
     Map<String, dynamic> listing,
   ) {
     final id =
@@ -2323,7 +2327,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
 
     final busy =
         id is int &&
-            _busyIds.contains(id);
+            _processingListingIds.contains(id);
 
     final active =
         _isPromotionActive(
@@ -2335,7 +2339,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       listing,
     );
 
-    return _buildCard(
+    return _buildListingCard(
       listing,
       footer: active
           ? Container(
@@ -2465,10 +2469,10 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     );
   }
 
-  Widget _buildPromotionCard(
+  Widget _buildPromotionListingCard(
     Map<String, dynamic> listing,
   ) {
-    return _buildCard(
+    return _buildListingCard(
       listing,
       footer: Container(
         padding:
@@ -2552,7 +2556,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     );
   }
 
-  Widget _buildReportCard(
+  Widget _buildListingReportCard(
     _ReportGroup group,
   ) {
     final listing =
@@ -2563,7 +2567,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
 
     final busy =
         id is int &&
-            _busyIds.contains(id);
+            _processingListingIds.contains(id);
 
     final shown =
         group.reports
@@ -2591,7 +2595,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
             .take(3)
             .join(' | ');
 
-    return _buildCard(
+    return _buildListingCard(
       listing,
       footer: Container(
         padding:
@@ -2776,15 +2780,15 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     );
   }
 
-  Widget _buildPendingTab() {
+  Widget _buildPendingListingsTab() {
     return RefreshIndicator(
       color:
           AppColors.brand,
       onRefresh: () =>
-          _loadAll(
+          _loadDashboardData(
         showSpinner: false,
       ),
-      child: _pending.isEmpty
+      child: _pendingListings.isEmpty
           ? _emptyState(
               Icons
                   .check_circle_outline,
@@ -2840,8 +2844,8 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                     ],
                   ),
                 ),
-                ..._pending.map(
-                  _buildPendingCard,
+                ..._pendingListings.map(
+                  _buildPendingListingCard,
                 ),
               ],
             ),
@@ -2854,7 +2858,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         color:
             AppColors.brand,
         onRefresh: () =>
-            _loadAll(
+            _loadDashboardData(
           showSpinner: false,
         ),
         child: ListView(
@@ -2922,10 +2926,10 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       color:
           AppColors.brand,
       onRefresh: () =>
-          _loadAll(
+          _loadDashboardData(
         showSpinner: false,
       ),
-      child: _reportGroups.isEmpty
+      child: _listingReportGroups.isEmpty
           ? _emptyState(
               Icons.flag_outlined,
               'لا توجد بلاغات حالياً',
@@ -2941,14 +2945,14 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                 24,
               ),
               children:
-                  _reportGroups.map(
-                _buildReportCard,
+                  _listingReportGroups.map(
+                _buildListingReportCard,
               ).toList(),
             ),
     );
   }
 
-  Widget _buildApprovedTab() {
+  Widget _buildApprovedListingsTab() {
     return Column(
       children: [
         Padding(
@@ -3064,15 +3068,15 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
             color:
                 AppColors.brand,
             onRefresh: () =>
-                _loadAll(
+                _loadDashboardData(
               showSpinner: false,
             ),
             child:
-                _approved.isEmpty
+                _approvedListings.isEmpty
                     ? _emptyState(
                         Icons
                             .search_off_outlined,
-                        _approvedQuery
+                        _approvedSearchQuery
                                 .isEmpty
                             ? 'لا توجد إعلانات معتمدة'
                             : 'لا نتائج للبحث',
@@ -3088,10 +3092,10 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                           24,
                         ),
                         children: [
-                          ..._approved.map(
-                            _buildApprovedCard,
+                          ..._approvedListings.map(
+                            _buildApprovedListingCard,
                           ),
-                          if (_approvedHasMore)
+                          if (_hasMoreApprovedListings)
                             Padding(
                               padding:
                                   const EdgeInsets
@@ -3102,7 +3106,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                               child:
                                   Center(
                                 child:
-                                    _approvedLoadingMore
+                                    _isLoadingMoreApproved
                                         ? const CircularProgressIndicator(
                                             color:
                                                 AppColors.brand,
@@ -3113,7 +3117,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                                                 _compactOutlinedStyle,
                                             onPressed:
                                                 () =>
-                                                    _loadApproved(
+                                                    _loadApprovedListings(
                                               reset:
                                                   false,
                                             ),
@@ -3142,10 +3146,10 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       color:
           AppColors.brand,
       onRefresh: () =>
-          _loadAll(
+          _loadDashboardData(
         showSpinner: false,
       ),
-      child: _promotions.isEmpty
+      child: _activePromotions.isEmpty
           ? _emptyState(
               Icons
                   .campaign_outlined,
@@ -3162,12 +3166,16 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                 24,
               ),
               children:
-                  _promotions.map(
-                _buildPromotionCard,
+                  _activePromotions.map(
+                _buildPromotionListingCard,
               ).toList(),
             ),
     );
   }
+
+  // =========================
+  // أقسام لوحة التحكم والتبويبات
+  // =========================
 
   Widget _buildLocked() {
     return Center(
@@ -3248,7 +3256,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   }
 
   // =========================
-  // Build
+  // بناء الصفحة
   // =========================
 
   @override
@@ -3256,13 +3264,13 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     BuildContext context,
   ) {
     final showTabs =
-        !_checkingAdmin &&
-            _isAdmin;
+        !_isCheckingAdmin &&
+            _isCurrentUserAdmin;
 
     final Widget body;
 
-    if (_checkingAdmin ||
-        (_isAdmin && _loading)) {
+    if (_isCheckingAdmin ||
+        (_isCurrentUserAdmin && _isLoadingDashboard)) {
       body =
           const Center(
         child:
@@ -3271,23 +3279,23 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
               AppColors.brand,
         ),
       );
-    } else if (!_isAdmin) {
+    } else if (!_isCurrentUserAdmin) {
       body =
           _buildLocked();
     } else {
       final tabs =
           TabBarView(
         children: [
-          _buildPendingTab(),
+          _buildPendingListingsTab(),
           _buildReportsTab(),
-          _buildApprovedTab(),
+          _buildApprovedListingsTab(),
           _buildPromotionsTab(),
         ],
       );
 
       body = Column(
         children: [
-          _buildVisitorStatsCard(),
+          _buildVisitorStatisticsCard(),
           Expanded(
             child: tabs,
           ),
@@ -3299,7 +3307,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
         NumberFormat(
       '#,##0',
       'en',
-    ).format(_totalVisits);
+    ).format(_totalVisitSessions);
 
     return Directionality(
       textDirection:
@@ -3339,7 +3347,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                   runSpacing: 2,
                   children: [
                     Text(
-                      '👤 $_anonymousVisitors زائر',
+                      '👤 $_currentAnonymousVisitors زائر',
                       style:
                           const TextStyle(
                         fontSize: 10.5,
@@ -3350,7 +3358,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                       ),
                     ),
                     Text(
-                      '👥 $_currentMembers عضو',
+                      '👥 $_currentOnlineMembers عضو',
                       style:
                           const TextStyle(
                         fontSize: 10.5,
@@ -3361,7 +3369,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                       ),
                     ),
                     Text(
-                      '🟢 $_currentTotal متصل',
+                      '🟢 $_currentOnlineTotal متصل',
                       style:
                           const TextStyle(
                         fontSize: 10.5,
@@ -3392,7 +3400,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                 tooltip:
                     'تحديث إحصائيات الزيارات',
                 icon:
-                    _loadingVisitorStats
+                    _isLoadingVisitorStats
                         ? const SizedBox(
                             width: 20,
                             height: 20,
@@ -3408,9 +3416,9 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                             Icons.refresh,
                           ),
                 onPressed:
-                    _loadingVisitorStats
+                    _isLoadingVisitorStats
                         ? null
-                        : _loadVisitorStats,
+                        : _loadDashboardVisitorStats,
               ),
               IconButton(
                 tooltip:
@@ -3503,14 +3511,14 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                         text:
                             _tabLabel(
                           'المراجعة',
-                          _pending.length,
+                          _pendingListings.length,
                         ),
                       ),
                       Tab(
                         text:
                             _tabLabel(
                           'البلاغات',
-                          _reportGroups.length,
+                          _listingReportGroups.length,
                         ),
                       ),
                       const Tab(
@@ -3521,7 +3529,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
                         text:
                             _tabLabel(
                           'التجارية',
-                          _promotions.length,
+                          _activePromotions.length,
                         ),
                       ),
                     ],
