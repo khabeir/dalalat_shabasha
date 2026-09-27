@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show NumberFormat;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../services/visitor_stats_service.dart';
 import 'admin_notifications_screen.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_decorations.dart';
@@ -24,7 +25,7 @@ class _ReportGroup {
     required this.reports,
   });
 
-  // عدد المبلّغين المختلفين (لا نحسب تكرار نفس الشخص).
+  // عدد المبلّغين المختلفين.
   int get reporterCount =>
       reports.map((report) => report['reporter_id']).toSet().length;
 }
@@ -72,6 +73,15 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
 
   Timer? _debounce;
 
+  // =========================
+  // إحصائيات الزوار
+  // =========================
+
+  int _currentVisitors = 0;
+  int _totalVisits = 0;
+  bool _loadingVisitorStats = false;
+  Timer? _visitorStatsTimer;
+
   @override
   void initState() {
     super.initState();
@@ -81,6 +91,7 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _visitorStatsTimer?.cancel();
     _searchController.dispose();
     super.dispose();
   }
@@ -281,6 +292,40 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
   }
 
   // =========================
+  // إحصائيات الزوار
+  // =========================
+
+  Future<void> _loadVisitorStats() async {
+    if (!_isAdmin || _loadingVisitorStats) return;
+
+    _loadingVisitorStats = true;
+
+    try {
+      final stats = await VisitorStatsService.instance.getStats();
+
+      if (!mounted) return;
+
+      setState(() {
+        _currentVisitors = stats['current'] ?? 0;
+        _totalVisits = stats['total'] ?? 0;
+      });
+    } catch (e) {
+      debugPrint('visitor stats error: $e');
+    } finally {
+      _loadingVisitorStats = false;
+    }
+  }
+
+  void _startVisitorStatsTimer() {
+    _visitorStatsTimer?.cancel();
+
+    _visitorStatsTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _loadVisitorStats(),
+    );
+  }
+
+  // =========================
   // تحميل البيانات
   // =========================
 
@@ -309,6 +354,8 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
     if (!_isAdmin) return;
 
     await _loadCategories();
+    await _loadVisitorStats();
+    _startVisitorStatsTimer();
     await _loadAll(showSpinner: false);
   }
 
@@ -2256,6 +2303,9 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
       );
     }
 
+    final formattedTotalVisits =
+        NumberFormat('#,##0', 'en').format(_totalVisits);
+
     return Directionality(
       textDirection: TextDirection.rtl,
       child: DefaultTabController(
@@ -2269,54 +2319,128 @@ class _AdminListingsScreenState extends State<AdminListingsScreen> {
             foregroundColor:
                 Colors.white,
             elevation: 0,
-            title: const Text(
-              'لوحة تحكم الأدمن',
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-              ),
+
+            title: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'لوحة تحكم الأدمن',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.circle,
+                      size: 8,
+                      color: Colors.greenAccent,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      '$_currentVisitors متصل',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    const Icon(
+                      Icons.visibility_outlined,
+                      size: 13,
+                      color: Colors.white70,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '$formattedTotalVisits زيارة',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
+
             centerTitle: false,
+
             actions: [
               IconButton(
+                tooltip: 'تحديث إحصائيات الزيارات',
+                icon: _loadingVisitorStats
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.refresh,
+                      ),
+                onPressed: _loadingVisitorStats
+                    ? null
+                    : _loadVisitorStats,
+              ),
+
+              IconButton(
                 tooltip: 'الأعضاء',
-                icon: const Icon(Icons.people_outline),
+                icon: const Icon(
+                  Icons.people_outline,
+                ),
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const AdminUsersScreen(),
+                      builder: (_) =>
+                          const AdminUsersScreen(),
                     ),
                   );
                 },
               ),
+
               IconButton(
-  tooltip: 'إشعارات الإدارة',
-  icon: const Icon(
-    Icons.notifications_active_outlined,
-  ),
-  onPressed: () {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            const AdminNotificationsScreen(),
-      ),
-    );
-  },
-),
-              IconButton(
-                tooltip: 'البنر الإعلاني',
-                icon: const Icon(Icons.campaign_outlined),
+                tooltip: 'إشعارات الإدارة',
+                icon: const Icon(
+                  Icons.notifications_active_outlined,
+                ),
                 onPressed: () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => const AdminBannersScreen(),
+                      builder: (_) =>
+                          const AdminNotificationsScreen(),
+                    ),
+                  );
+                },
+              ),
+
+              IconButton(
+                tooltip: 'البنر الإعلاني',
+                icon: const Icon(
+                  Icons.campaign_outlined,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          const AdminBannersScreen(),
                     ),
                   );
                 },
               ),
             ],
+
             bottom: showTabs
                 ? TabBar(
                     indicatorColor:

@@ -36,7 +36,7 @@ import '../core/widgets/listing_card.dart';
 import '../core/widgets/home_header.dart';
 
 import 'add_listing_screen.dart';
-import 'admin_listings_screen.dart';
+import 'admin_dashboard_screen.dart';
 import 'auth_screen.dart';
 import 'favorites_screen.dart';
 import 'listing_details_screen.dart';
