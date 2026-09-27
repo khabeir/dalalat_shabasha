@@ -396,7 +396,13 @@ class _HomeScreenState extends State<HomeScreen>
   }
 }
 
-  Future<void> _loadListings({bool reset = true}) async {
+int _pageSizeFor(int? categoryId) {
+  return categoryId == null
+      ? _homePageSize
+      : _categoryPageSize;
+}
+
+Future<void> _loadListings({bool reset = true}) async {
   if (!reset &&
       (_loadingMore || !_hasMore || _listingsLoading)) {
     return;
@@ -406,8 +412,10 @@ class _HomeScreenState extends State<HomeScreen>
       reset ? ++_listingsRequestId : _listingsRequestId;
 
   final categoryId = _selectedCategoryId;
-  final pageSize = _pageSizeFor(categoryId);
-  final page = reset ? 0 : _page;
+
+  final int pageSize = _pageSizeFor(categoryId);
+
+  final int page = reset ? 0 : _page;
 
   if (!reset && mounted) {
     setState(() => _loadingMore = true);
@@ -435,11 +443,8 @@ class _HomeScreenState extends State<HomeScreen>
       _listingsLoading = false;
     });
 
-    // نحفظ فقط أول تحميل للقائمة الرئيسية.
-    // حتى لا يستبدل تحميل قسم معين الكاش الرئيسي.
     if (reset && categoryId == null) {
-      await OfflineCacheService.instance
-          .saveListings(rows);
+      await OfflineCacheService.instance.saveListings(rows);
     }
   } catch (e) {
     debugPrint(
@@ -450,11 +455,9 @@ class _HomeScreenState extends State<HomeScreen>
       return;
     }
 
-    // عند فشل الإنترنت، نستخدم آخر نسخة محفوظة.
     if (reset && categoryId == null) {
       final cached =
-          await OfflineCacheService.instance
-              .getListings();
+          await OfflineCacheService.instance.getListings();
 
       if (cached.isNotEmpty) {
         setState(() {
