@@ -1,6 +1,3 @@
-admin_listings_screen_styled.dart
-تم تغييره الى
-admin_dashboard_screen.dart
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
