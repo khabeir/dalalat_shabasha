@@ -465,6 +465,75 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     return 'منذ ${(difference.inDays / 365).floor()} سنة';
   }
 
+  String _displayDurationLabel(dynamic duration) {
+    switch (duration?.toString()) {
+      case 'day':
+        return 'يوم واحد';
+      case 'week':
+        return 'أسبوع واحد';
+      case 'month':
+        return 'شهر واحد';
+      case 'unlimited':
+        return 'غير محدود';
+      default:
+        return '';
+    }
+  }
+
+  String _formatDate(dynamic value) {
+    if (value == null) return '';
+
+    DateTime? date;
+
+    try {
+      date = DateTime.parse(value.toString()).toLocal();
+    } catch (_) {
+      return '';
+    }
+
+    return '${date.year}/'
+        '${date.month.toString().padLeft(2, '0')}/'
+        '${date.day.toString().padLeft(2, '0')}';
+  }
+
+  String _remainingText(dynamic end) {
+    if (end == null) return '';
+
+    DateTime? date;
+
+    try {
+      date = DateTime.parse(end.toString()).toUtc();
+    } catch (_) {
+      return '';
+    }
+
+    final diff = date.difference(DateTime.now().toUtc());
+
+    if (diff.isNegative) return 'انتهت مدة العرض';
+    if (diff.inDays >= 1) {
+      return 'متبقي ${diff.inDays} يوم';
+    }
+    if (diff.inHours >= 1) {
+      return 'متبقي ${diff.inHours} ساعة';
+    }
+
+    return 'متبقي ${diff.inMinutes} دقيقة';
+  }
+
+  bool _isDisplayExpired(dynamic end) {
+    if (end == null) return false;
+
+    DateTime? date;
+
+    try {
+      date = DateTime.parse(end.toString()).toUtc();
+    } catch (_) {
+      return false;
+    }
+
+    return date.isBefore(DateTime.now().toUtc());
+  }
+
   Future<void> _openListing(
     Map<String, dynamic> listing,
   ) async {
@@ -854,6 +923,76 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
     );
   }
 
+  Widget? _buildDisplayDurationBanner(
+    Map<String, dynamic> listing,
+  ) {
+    final duration =
+        listing['display_duration']?.toString();
+
+    if (duration == null || duration.isEmpty) {
+      return null;
+    }
+
+    final expiresAt = listing['display_expires_at'];
+    final isUnlimited = duration == 'unlimited';
+    final expired =
+        !isUnlimited && _isDisplayExpired(expiresAt);
+
+    final color = expired
+        ? Colors.red.shade700
+        : AppColors.brand;
+
+    final icon = isUnlimited
+        ? Icons.all_inclusive_rounded
+        : expired
+            ? Icons.event_busy_outlined
+            : Icons.schedule_outlined;
+
+    final text = isUnlimited
+        ? 'مدة العرض: غير محدود'
+        : expired
+            ? 'انتهت مدة عرض الإعلان (${_displayDurationLabel(duration)})'
+            : 'مدة العرض: ${_displayDurationLabel(duration)} '
+                '· ينتهي ${_formatDate(expiresAt)} '
+                '(${_remainingText(expiresAt)})';
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 11,
+        vertical: 9,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: color.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 17,
+            color: color,
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: color,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildThumbnail(String listingId) {
     final imageUrl = _imageUrls[listingId];
 
@@ -1198,6 +1337,14 @@ class _MyListingsScreenState extends State<MyListingsScreen> {
                     ],
                   ),
                 ),
+                if (status == 'approved' &&
+                    _buildDisplayDurationBanner(
+                          listing,
+                        ) !=
+                        null)
+                  _buildDisplayDurationBanner(
+                    listing,
+                  )!,
                 if (status == 'rejected') ...[
                   const SizedBox(height: 10),
                   Container(
