@@ -29,20 +29,14 @@ class _ReportGroup {
       reports.map((report) => report['reporter_id']).toSet().length;
 }
 
-// Alias used by HomeScreen.
-// The dashboard implementation remains AdminListingsScreen.
-class AdminDashboardScreen extends AdminListingsScreen {
+class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
-}
-
-class AdminListingsScreen extends StatefulWidget {
-  const AdminListingsScreen({super.key});
 
   @override
-  State<AdminListingsScreen> createState() => _AdminListingsScreenState();
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
 }
 
-class _AdminListingsScreenState extends State<AdminListingsScreen> {
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   static const _approvedPageSize = 30;
 
   final SupabaseClient _supabase = Supabase.instance.client;
