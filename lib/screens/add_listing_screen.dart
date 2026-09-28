@@ -43,11 +43,20 @@ class _AddListingScreenState extends State<AddListingScreen> {
   bool _saving = false;
   String? _progress;
 
+  // ============================================================
+  // رسالة الإدارة
+  // ============================================================
+
+  String? _adminMessage;
+  bool _adminMessageActive = false;
+
   @override
   void initState() {
     super.initState();
+
     _loadCategories();
     _loadDefaults();
+    _loadAdminMessage();
   }
 
   @override
@@ -57,14 +66,18 @@ class _AddListingScreenState extends State<AddListingScreen> {
     _priceController.dispose();
     _areaController.dispose();
     _phoneController.dispose();
+
     super.dispose();
   }
 
-  // =========================
+  // ============================================================
   // أدوات مساعدة
-  // =========================
+  // ============================================================
 
-  void _showSnack(String message, {int seconds = 4}) {
+  void _showSnack(
+    String message, {
+    int seconds = 4,
+  }) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
@@ -77,7 +90,6 @@ class _AddListingScreenState extends State<AddListingScreen> {
       );
   }
 
-  // هل أدخل المستخدم شيئاً يستحق التنبيه قبل الخروج؟
   bool get _hasChanges {
     return _titleController.text.trim().isNotEmpty ||
         _descriptionController.text.trim().isNotEmpty ||
@@ -109,9 +121,9 @@ class _AddListingScreenState extends State<AddListingScreen> {
     }
   }
 
-  // =========================
+  // ============================================================
   // تحميل البيانات
-  // =========================
+  // ============================================================
 
   Future<void> _loadCategories() async {
     try {
@@ -124,7 +136,8 @@ class _AddListingScreenState extends State<AddListingScreen> {
       if (!mounted) return;
 
       setState(() {
-        _categories = List<Map<String, dynamic>>.from(response);
+        _categories =
+            List<Map<String, dynamic>>.from(response);
         _loadingCategories = false;
       });
     } catch (e) {
@@ -132,13 +145,14 @@ class _AddListingScreenState extends State<AddListingScreen> {
 
       if (!mounted) return;
 
-      setState(() => _loadingCategories = false);
+      setState(() {
+        _loadingCategories = false;
+      });
 
       _showSnack('تعذر تحميل التصنيفات');
     }
   }
 
-  // تعبئة المنطقة ورقم التواصل من الملف الشخصي لتوفير الكتابة.
   Future<void> _loadDefaults() async {
     try {
       final user = _supabase.auth.currentUser;
@@ -151,26 +165,31 @@ class _AddListingScreenState extends State<AddListingScreen> {
           .eq('id', user.id)
           .maybeSingle();
 
-      var phone = profile?['phone']?.toString().trim() ?? '';
+      var phone =
+          profile?['phone']?.toString().trim() ?? '';
 
       if (phone.isEmpty) {
-        phone = user.userMetadata?['phone']?.toString().trim() ?? '';
+        phone =
+            user.userMetadata?['phone']?.toString().trim() ??
+                '';
       }
 
       if (phone.isEmpty) {
         phone = user.phone?.trim() ?? '';
       }
 
-      final area = profile?['area']?.toString().trim() ?? '';
+      final area =
+          profile?['area']?.toString().trim() ?? '';
 
       if (!mounted) return;
 
-      // لا نكتب فوق ما بدأ المستخدم بكتابته.
-      if (_phoneController.text.trim().isEmpty && phone.isNotEmpty) {
+      if (_phoneController.text.trim().isEmpty &&
+          phone.isNotEmpty) {
         _phoneController.text = phone;
       }
 
-      if (_areaController.text.trim().isEmpty && area.isNotEmpty) {
+      if (_areaController.text.trim().isEmpty &&
+          area.isNotEmpty) {
         _areaController.text = area;
       }
     } catch (e) {
@@ -178,26 +197,76 @@ class _AddListingScreenState extends State<AddListingScreen> {
     }
   }
 
-  // =========================
+  // ============================================================
+  // تحميل رسالة الإدارة
+  // ============================================================
+
+  Future<void> _loadAdminMessage() async {
+    try {
+      final response = await _supabase
+          .from('add_listing_admin_message')
+          .select('message, is_active')
+          .eq('id', 1)
+          .eq('is_active', true)
+          .maybeSingle();
+
+      if (!mounted) return;
+
+      final message =
+          response?['message']?.toString().trim();
+
+      setState(() {
+        _adminMessage =
+            message != null && message.isNotEmpty
+                ? message
+                : null;
+
+        _adminMessageActive =
+            response?['is_active'] == true &&
+            (_adminMessage?.isNotEmpty ?? false);
+      });
+    } catch (e) {
+      debugPrint(
+        'loadAdminMessage error: $e',
+      );
+
+      // إذا فشل تحميل الرسالة، لا نعطل صفحة إضافة الإعلان.
+      if (!mounted) return;
+
+      setState(() {
+        _adminMessage = null;
+        _adminMessageActive = false;
+      });
+    }
+  }
+
+  // ============================================================
   // الصور
-  // =========================
+  // ============================================================
 
   Future<void> _addImages() async {
     final picked = await pickListingImages(
       context,
       _imagePicker,
-      remaining: kMaxListingImages - _images.length,
+      remaining:
+          kMaxListingImages - _images.length,
     );
 
     if (picked.isEmpty || !mounted) return;
 
     setState(() {
-      _images.addAll(picked.map(ListingImageItem.local));
+      _images.addAll(
+        picked.map(
+          ListingImageItem.local,
+        ),
+      );
     });
   }
 
   void _removeImage(int index) {
-    setState(() => _images.removeAt(index));
+    setState(() {
+      _images.removeAt(index);
+    });
   }
 
   void _makeCover(int index) {
@@ -212,50 +281,68 @@ class _AddListingScreenState extends State<AddListingScreen> {
     );
   }
 
-  // =========================
+  // ============================================================
   // مدة الإعلان
-  // =========================
+  // ============================================================
 
-  String _displayDurationTitle(String value) {
+  String _displayDurationTitle(
+    String value,
+  ) {
     switch (value) {
       case 'day':
         return 'يوم واحد';
+
       case 'week':
         return 'أسبوع واحد';
+
       case 'month':
         return 'شهر واحد';
+
       case 'unlimited':
         return 'غير محدود';
+
       default:
         return 'شهر واحد';
     }
   }
 
-  String _displayDurationSubtitle(String value) {
+  String _displayDurationSubtitle(
+    String value,
+  ) {
     switch (value) {
       case 'day':
         return 'ينتهي بعد 24 ساعة من الموافقة';
+
       case 'week':
         return 'ينتهي بعد 7 أيام من الموافقة';
+
       case 'month':
         return 'ينتهي بعد شهر تقويمي من الموافقة';
+
       case 'unlimited':
         return 'يبقى منشوراً حتى تقوم الإدارة بإخفائه';
+
       default:
         return '';
     }
   }
 
-  IconData _displayDurationIcon(String value) {
+  IconData _displayDurationIcon(
+    String value,
+  ) {
     switch (value) {
       case 'day':
         return Icons.today_outlined;
+
       case 'week':
         return Icons.date_range_outlined;
+
       case 'month':
         return Icons.calendar_month_outlined;
+
       case 'unlimited':
         return Icons.all_inclusive_rounded;
+
       default:
         return Icons.calendar_month_outlined;
     }
@@ -264,11 +351,15 @@ class _AddListingScreenState extends State<AddListingScreen> {
   Widget _buildDisplayDurationOption({
     required String value,
   }) {
-    final selected = _displayDuration == value;
-    final colorScheme = Theme.of(context).colorScheme;
+    final selected =
+        _displayDuration == value;
+
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius:
+          BorderRadius.circular(16),
       onTap: _saving
           ? null
           : () {
@@ -277,26 +368,37 @@ class _AddListingScreenState extends State<AddListingScreen> {
               });
             },
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
+        duration:
+            const Duration(milliseconds: 180),
         curve: Curves.easeOut,
-        padding: const EdgeInsets.all(13),
+        padding:
+            const EdgeInsets.all(13),
         decoration: BoxDecoration(
           color: selected
-              ? _brandPurple.withValues(alpha: 0.08)
+              ? _brandPurple.withValues(
+                  alpha: 0.08,
+                )
               : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius:
+              BorderRadius.circular(16),
           border: Border.all(
             color: selected
                 ? _brandPurple
-                : colorScheme.outline.withValues(alpha: 0.18),
+                : colorScheme.outline.withValues(
+                    alpha: 0.18,
+                  ),
             width: selected ? 1.6 : 1,
           ),
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: _brandPurple.withValues(alpha: 0.08),
+                    color:
+                        _brandPurple.withValues(
+                      alpha: 0.08,
+                    ),
                     blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    offset:
+                        const Offset(0, 4),
                   ),
                 ]
               : null,
@@ -304,13 +406,18 @@ class _AddListingScreenState extends State<AddListingScreen> {
         child: Row(
           children: [
             AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration:
+                  const Duration(
+                milliseconds: 180,
+              ),
               width: 42,
               height: 42,
               decoration: BoxDecoration(
                 color: selected
                     ? _brandPurple
-                    : _brandPurple.withValues(alpha: 0.08),
+                    : _brandPurple.withValues(
+                        alpha: 0.08,
+                      ),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -321,36 +428,51 @@ class _AddListingScreenState extends State<AddListingScreen> {
                     : _brandPurple,
               ),
             ),
+
             const SizedBox(width: 12),
+
             Expanded(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start,
                 children: [
                   Text(
                     _displayDurationTitle(value),
                     style: TextStyle(
                       fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
+                      fontWeight:
+                          FontWeight.w800,
                       color: selected
                           ? _deepPurple
-                          : colorScheme.onSurface,
+                          : colorScheme
+                              .onSurface,
                     ),
                   ),
+
                   const SizedBox(height: 3),
+
                   Text(
-                    _displayDurationSubtitle(value),
+                    _displayDurationSubtitle(
+                      value,
+                    ),
                     style: TextStyle(
                       fontSize: 12,
                       height: 1.35,
-                      color: colorScheme.onSurfaceVariant,
+                      color: colorScheme
+                          .onSurfaceVariant,
                     ),
                   ),
                 ],
               ),
             ),
+
             const SizedBox(width: 8),
+
             AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
+              duration:
+                  const Duration(
+                milliseconds: 180,
+              ),
               width: 22,
               height: 22,
               decoration: BoxDecoration(
@@ -358,7 +480,10 @@ class _AddListingScreenState extends State<AddListingScreen> {
                 border: Border.all(
                   color: selected
                       ? _brandPurple
-                      : colorScheme.outline.withValues(alpha: 0.45),
+                      : colorScheme.outline
+                          .withValues(
+                          alpha: 0.45,
+                        ),
                   width: 1.6,
                 ),
                 color: selected
@@ -382,42 +507,57 @@ class _AddListingScreenState extends State<AddListingScreen> {
   Widget _buildDisplayDurationSection() {
     return ListingSectionCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           const ListingSectionTitle(
-            icon: Icons.schedule_outlined,
-            title: 'مدة ظهور الإعلان',
-            subtitle: 'اختر المدة المطلوبة لعرض إعلانك',
+            icon:
+                Icons.schedule_outlined,
+            title:
+                'مدة ظهور الإعلان',
+            subtitle:
+                'اختر المدة المطلوبة لعرض إعلانك',
           ),
 
           const SizedBox(height: 8),
 
           Container(
-            padding: const EdgeInsets.symmetric(
+            padding:
+                const EdgeInsets.symmetric(
               horizontal: 11,
               vertical: 9,
             ),
             decoration: BoxDecoration(
-              color: _accentOrange.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(12),
+              color:
+                  _accentOrange.withValues(
+                alpha: 0.10,
+              ),
+              borderRadius:
+                  BorderRadius.circular(12),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
               children: [
                 Icon(
                   Icons.info_outline,
                   size: 19,
-                  color: Colors.orange.shade800,
+                  color:
+                      Colors.orange.shade800,
                 ),
+
                 const SizedBox(width: 8),
+
                 Expanded(
                   child: Text(
                     'تبدأ مدة الإعلان عند موافقة الإدارة، وليس عند إرسال الإعلان للمراجعة.',
                     style: TextStyle(
                       fontSize: 12.5,
                       height: 1.45,
-                      color: Colors.orange.shade900,
-                      fontWeight: FontWeight.w600,
+                      color:
+                          Colors.orange.shade900,
+                      fontWeight:
+                          FontWeight.w600,
                     ),
                   ),
                 ),
@@ -427,57 +567,191 @@ class _AddListingScreenState extends State<AddListingScreen> {
 
           const SizedBox(height: 12),
 
-          _buildDisplayDurationOption(value: 'day'),
+          _buildDisplayDurationOption(
+            value: 'day',
+          ),
 
           const SizedBox(height: 8),
 
-          _buildDisplayDurationOption(value: 'week'),
+          _buildDisplayDurationOption(
+            value: 'week',
+          ),
 
           const SizedBox(height: 8),
 
-          _buildDisplayDurationOption(value: 'month'),
+          _buildDisplayDurationOption(
+            value: 'month',
+          ),
 
           const SizedBox(height: 8),
 
-          _buildDisplayDurationOption(value: 'unlimited'),
+          _buildDisplayDurationOption(
+            value: 'unlimited',
+          ),
         ],
       ),
     );
   }
 
-  // =========================
-  // الحفظ
-  // =========================
+  // ============================================================
+  // بطاقة رسالة الإدارة
+  // ============================================================
 
-  Future<void> _rollbackListing(int listingId) async {
+  Widget _buildAdminMessage() {
+    if (!_adminMessageActive ||
+        _adminMessage == null ||
+        _adminMessage!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      width: double.infinity,
+      padding:
+          const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient:
+            LinearGradient(
+          begin:
+              Alignment.topRight,
+          end:
+              Alignment.bottomLeft,
+          colors: [
+            _brandPurple.withValues(
+              alpha: 0.10,
+            ),
+            _accentOrange.withValues(
+              alpha: 0.10,
+            ),
+          ],
+        ),
+        borderRadius:
+            BorderRadius.circular(16),
+        border: Border.all(
+          color:
+              _brandPurple.withValues(
+            alpha: 0.16,
+          ),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color:
+                _brandPurple.withValues(
+              alpha: 0.06,
+            ),
+            blurRadius: 12,
+            offset:
+                const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            alignment:
+                Alignment.center,
+            decoration:
+                const BoxDecoration(
+              color: _brandPurple,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.campaign_rounded,
+              color: Colors.white,
+              size: 21,
+            ),
+          ),
+
+          const SizedBox(width: 11),
+
+          Expanded(
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'رسالة الإدارة',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight:
+                        FontWeight.w900,
+                    color: _deepPurple,
+                  ),
+                ),
+
+                const SizedBox(height: 5),
+
+                Text(
+                  _adminMessage!,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    height: 1.55,
+                    fontWeight:
+                        FontWeight.w600,
+                    color:
+                        Color(0xFF3A3155),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ============================================================
+  // التراجع عن الإعلان إذا فشل رفع الصور
+  // ============================================================
+
+  Future<void> _rollbackListing(
+    int listingId,
+  ) async {
     try {
       await _supabase
           .from('listings')
           .delete()
           .eq('id', listingId);
     } catch (e) {
-      debugPrint('rollbackListing error: $e');
+      debugPrint(
+        'rollbackListing error: $e',
+      );
     }
   }
+
+  // ============================================================
+  // حفظ الإعلان
+  // ============================================================
 
   Future<void> _saveListing() async {
     if (_saving) return;
 
-    if (!(_formKey.currentState?.validate() ?? false)) {
+    if (!(_formKey.currentState
+            ?.validate() ??
+        false)) {
       return;
     }
 
-    final categoryId = _selectedCategoryId;
+    final categoryId =
+        _selectedCategoryId;
 
     if (categoryId == null) {
-      _showSnack('اختر تصنيف الإعلان');
+      _showSnack(
+        'اختر تصنيف الإعلان',
+      );
       return;
     }
 
-    final user = _supabase.auth.currentUser;
+    final user =
+        _supabase.auth.currentUser;
 
     if (user == null) {
-      _showSnack('يجب تسجيل الدخول أولاً');
+      _showSnack(
+        'يجب تسجيل الدخول أولاً',
+      );
       return;
     }
 
@@ -485,7 +759,8 @@ class _AddListingScreenState extends State<AddListingScreen> {
 
     setState(() {
       _saving = true;
-      _progress = 'جاري حفظ الإعلان...';
+      _progress =
+          'جاري حفظ الإعلان...';
     });
 
     int? listingId;
@@ -494,26 +769,31 @@ class _AddListingScreenState extends State<AddListingScreen> {
       final response = await _supabase
           .from('listings')
           .insert({
-            'seller_id': user.id,
-            'category_id': categoryId,
-            'title': _titleController.text.trim(),
-            'description': _descriptionController.text.trim(),
-            'price': _priceType == 'contact'
-                ? null
-                : parsePrice(_priceController.text),
-            'currency': 'SDG',
-            'price_type': _priceType,
-            'condition': _condition,
-            'area': _areaController.text.trim(),
-            'contact_phone': cleanPhone(
-              _phoneController.text,
-            ),
-            'status': 'pending',
-
-            // المدة المطلوبة من صاحب الإعلان.
-            // لا نضع started/expires هنا لأن الإعلان لم يعتمد بعد.
-            'display_duration': _displayDuration,
-          })
+        'seller_id': user.id,
+        'category_id': categoryId,
+        'title':
+            _titleController.text.trim(),
+        'description':
+            _descriptionController
+                .text
+                .trim(),
+        'price': _priceType == 'contact'
+            ? null
+            : parsePrice(
+                _priceController.text,
+              ),
+        'currency': 'SDG',
+        'price_type': _priceType,
+        'condition': _condition,
+        'area':
+            _areaController.text.trim(),
+        'contact_phone': cleanPhone(
+          _phoneController.text,
+        ),
+        'status': 'pending',
+        'display_duration':
+            _displayDuration,
+      })
           .select('id')
           .single();
 
@@ -527,11 +807,13 @@ class _AddListingScreenState extends State<AddListingScreen> {
 
       listingId = id;
 
-      // رفع الصور واحدة بعد أخرى مع إظهار التقدم.
       var failed = 0;
 
-      for (var i = 0; i < _images.length; i++) {
-        final file = _images[i].file;
+      for (var i = 0;
+          i < _images.length;
+          i++) {
+        final file =
+            _images[i].file;
 
         if (file == null) continue;
 
@@ -558,7 +840,6 @@ class _AddListingScreenState extends State<AddListingScreen> {
         }
       }
 
-      // فشلت كل الصور: نلغي الإعلان حتى لا يتكرر عند إعادة المحاولة.
       if (_images.isNotEmpty &&
           failed == _images.length) {
         await _rollbackListing(id);
@@ -569,6 +850,7 @@ class _AddListingScreenState extends State<AddListingScreen> {
           'تحقق من اتصال الإنترنت وحاول مرة أخرى.',
           seconds: 6,
         );
+
         return;
       }
 
@@ -586,16 +868,23 @@ class _AddListingScreenState extends State<AddListingScreen> {
 
       _showSnack(
         buffer.toString(),
-        seconds: failed > 0 ? 7 : 4,
+        seconds:
+            failed > 0 ? 7 : 4,
       );
 
-      Navigator.pop(context, true);
+      Navigator.pop(
+        context,
+        true,
+      );
     } catch (e) {
-      debugPrint('saveListing error: $e');
+      debugPrint(
+        'saveListing error: $e',
+      );
 
-      // إن أُنشئ الإعلان ثم حدث خطأ غير متوقع نلغيه لتجنب التكرار.
       if (listingId != null) {
-        await _rollbackListing(listingId);
+        await _rollbackListing(
+          listingId,
+        );
       }
 
       _showSnack(
@@ -612,40 +901,54 @@ class _AddListingScreenState extends State<AddListingScreen> {
     }
   }
 
-  // =========================
-  // الواجهة
-  // =========================
+  // ============================================================
+  // إشعار المراجعة
+  // ============================================================
 
   Widget _buildReviewNotice() {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 12,
         vertical: 10,
       ),
       decoration: BoxDecoration(
-        color: colorScheme.tertiaryContainer
-            .withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(12),
+        color: colorScheme
+            .tertiaryContainer
+            .withValues(
+          alpha: 0.6,
+        ),
+        borderRadius:
+            BorderRadius.circular(12),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Icon(
             Icons.info_outline,
             size: 20,
-            color: colorScheme.onTertiaryContainer,
+            color:
+                colorScheme
+                    .onTertiaryContainer,
           ),
+
           const SizedBox(width: 9),
+
           Expanded(
             child: Text(
               'سيُراجع الإعلان من الإدارة قبل ظهوره للمستخدمين.',
               style: TextStyle(
                 fontSize: 13,
                 height: 1.4,
-                color: colorScheme.onTertiaryContainer,
-                fontWeight: FontWeight.w500,
+                color:
+                    colorScheme
+                        .onTertiaryContainer,
+                fontWeight:
+                    FontWeight.w500,
               ),
             ),
           ),
@@ -654,25 +957,36 @@ class _AddListingScreenState extends State<AddListingScreen> {
     );
   }
 
+  // ============================================================
+  // بيانات الإعلان
+  // ============================================================
+
   Widget _buildDetailsSection() {
     return ListingSectionCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           const ListingSectionTitle(
-            icon: Icons.edit_note_outlined,
-            title: 'بيانات الإعلان',
-            subtitle: 'أدخل المعلومات الأساسية',
+            icon:
+                Icons.edit_note_outlined,
+            title:
+                'بيانات الإعلان',
+            subtitle:
+                'أدخل المعلومات الأساسية',
           ),
 
           const SizedBox(height: 14),
 
           ListingCategoryField(
-            categories: _categories,
-            value: _selectedCategoryId,
+            categories:
+                _categories,
+            value:
+                _selectedCategoryId,
             onChanged: (value) {
               setState(() {
-                _selectedCategoryId = value;
+                _selectedCategoryId =
+                    value;
               });
             },
           ),
@@ -680,30 +994,45 @@ class _AddListingScreenState extends State<AddListingScreen> {
           const SizedBox(height: 12),
 
           TextFormField(
-            controller: _titleController,
-            textInputAction: TextInputAction.next,
-            maxLength: kMaxTitleLength,
-            decoration: listingInputDecoration(
+            controller:
+                _titleController,
+            textInputAction:
+                TextInputAction.next,
+            maxLength:
+                kMaxTitleLength,
+            decoration:
+                listingInputDecoration(
               context,
-              label: 'عنوان الإعلان',
-              hint: 'مثال: هاتف سامسونج للبيع',
-              icon: Icons.title_outlined,
+              label:
+                  'عنوان الإعلان',
+              hint:
+                  'مثال: هاتف سامسونج للبيع',
+              icon:
+                  Icons.title_outlined,
             ),
-            validator: validateListingTitle,
+            validator:
+                validateListingTitle,
           ),
 
           const SizedBox(height: 8),
 
           TextFormField(
-            controller: _descriptionController,
+            controller:
+                _descriptionController,
             maxLines: 5,
-            maxLength: kMaxDescriptionLength,
-            decoration: listingInputDecoration(
+            maxLength:
+                kMaxDescriptionLength,
+            decoration:
+                listingInputDecoration(
               context,
-              label: 'وصف الإعلان',
-              hint: 'اكتب تفاصيل السلعة وحالتها...',
-              icon: Icons.description_outlined,
-              alignLabelWithHint: true,
+              label:
+                  'وصف الإعلان',
+              hint:
+                  'اكتب تفاصيل السلعة وحالتها...',
+              icon:
+                  Icons.description_outlined,
+              alignLabelWithHint:
+                  true,
             ),
           ),
         ],
@@ -711,75 +1040,117 @@ class _AddListingScreenState extends State<AddListingScreen> {
     );
   }
 
+  // ============================================================
+  // الموقع والتواصل
+  // ============================================================
+
   Widget _buildContactSection() {
     return ListingSectionCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           const ListingSectionTitle(
-            icon: Icons.location_on_outlined,
-            title: 'الموقع والتواصل',
-            subtitle: 'كيف يمكن الوصول إليك؟',
+            icon:
+                Icons.location_on_outlined,
+            title:
+                'الموقع والتواصل',
+            subtitle:
+                'كيف يمكن الوصول إليك؟',
           ),
 
           const SizedBox(height: 14),
 
           TextFormField(
-            controller: _areaController,
-            textInputAction: TextInputAction.next,
-            decoration: listingInputDecoration(
+            controller:
+                _areaController,
+            textInputAction:
+                TextInputAction.next,
+            decoration:
+                listingInputDecoration(
               context,
-              label: 'المنطقة',
-              hint: 'مثال: الحي الثاني',
-              icon: Icons.location_on_outlined,
+              label:
+                  'المنطقة',
+              hint:
+                  'مثال: الحي الثاني',
+              icon:
+                  Icons.location_on_outlined,
             ),
           ),
 
           const SizedBox(height: 12),
 
           TextFormField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            textInputAction: TextInputAction.done,
-            decoration: listingInputDecoration(
+            controller:
+                _phoneController,
+            keyboardType:
+                TextInputType.phone,
+            textInputAction:
+                TextInputAction.done,
+            decoration:
+                listingInputDecoration(
               context,
-              label: 'رقم التواصل',
-              hint: 'رقم الهاتف أو الواتساب',
-              icon: Icons.phone_outlined,
-              helper: 'يظهر للمشترين للاتصال بك',
+              label:
+                  'رقم التواصل',
+              hint:
+                  'رقم الهاتف أو الواتساب',
+              icon:
+                  Icons.phone_outlined,
+              helper:
+                  'يظهر للمشترين للاتصال بك',
             ),
-            validator: validateContactPhone,
+            validator:
+                validateContactPhone,
           ),
         ],
       ),
     );
   }
 
+  // ============================================================
+  // زر نشر الإعلان
+  // ============================================================
+
   Widget _buildPublishButton() {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colorScheme =
+        Theme.of(context).colorScheme;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+      crossAxisAlignment:
+          CrossAxisAlignment.stretch,
       children: [
         SizedBox(
           height: 56,
           child: FilledButton.icon(
-            style: FilledButton.styleFrom(
-              backgroundColor: _brandPurple,
-              foregroundColor: Colors.white,
+            style:
+                FilledButton.styleFrom(
+              backgroundColor:
+                  _brandPurple,
+              foregroundColor:
+                  Colors.white,
               elevation: 4,
               shadowColor:
-                  _brandPurple.withValues(alpha: .28),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+                  _brandPurple.withValues(
+                alpha: .28,
+              ),
+              shape:
+                  RoundedRectangleBorder(
+                borderRadius:
+                    BorderRadius.circular(
+                  18,
+                ),
               ),
             ),
-            onPressed: _saving ? null : _saveListing,
+            onPressed:
+                _saving
+                    ? null
+                    : _saveListing,
             icon: _saving
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(
+                    child:
+                        CircularProgressIndicator(
                       strokeWidth: 2,
                     ),
                   )
@@ -791,22 +1162,28 @@ class _AddListingScreenState extends State<AddListingScreen> {
               _saving
                   ? 'جاري الحفظ...'
                   : 'نشر الإعلان',
-              style: const TextStyle(
+              style:
+                  const TextStyle(
                 fontSize: 15,
-                fontWeight: FontWeight.w600,
+                fontWeight:
+                    FontWeight.w600,
               ),
             ),
           ),
         ),
 
-        if (_saving && _progress != null) ...[
+        if (_saving &&
+            _progress != null) ...[
           const SizedBox(height: 10),
+
           Text(
             _progress!,
-            textAlign: TextAlign.center,
+            textAlign:
+                TextAlign.center,
             style: TextStyle(
               fontSize: 13,
-              color: colorScheme.onSurfaceVariant,
+              color: colorScheme
+                  .onSurfaceVariant,
             ),
           ),
         ],
@@ -814,132 +1191,233 @@ class _AddListingScreenState extends State<AddListingScreen> {
     );
   }
 
+  // ============================================================
+  // Build
+  // ============================================================
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(
+    BuildContext context,
+  ) {
     return Directionality(
-      textDirection: TextDirection.rtl,
+      textDirection:
+          TextDirection.rtl,
       child: PopScope(
         canPop: false,
-        onPopInvokedWithResult: (didPop, _) {
+        onPopInvokedWithResult:
+            (didPop, _) {
           if (!didPop) {
             _onBackPressed();
           }
         },
         child: Scaffold(
-          backgroundColor: _warmCream,
+          backgroundColor:
+              _warmCream,
+
           appBar: AppBar(
             elevation: 0,
             centerTitle: true,
-            foregroundColor: Colors.white,
-            flexibleSpace: const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
+            foregroundColor:
+                Colors.white,
+            flexibleSpace:
+                const DecoratedBox(
+              decoration:
+                  BoxDecoration(
+                gradient:
+                    LinearGradient(
+                  begin:
+                      Alignment.topRight,
+                  end:
+                      Alignment.bottomLeft,
                   colors: [
                     _deepPurple,
                     _brandPurple,
-                    Color(0xFF7045C1),
+                    Color(
+                      0xFF7045C1,
+                    ),
                   ],
                 ),
               ),
             ),
-            leading: IconButton(
+            leading:
+                IconButton(
               tooltip: 'رجوع',
-              icon: const Icon(
-                Icons.arrow_back_rounded,
+              icon:
+                  const Icon(
+                Icons
+                    .arrow_back_rounded,
               ),
-              onPressed: _onBackPressed,
+              onPressed:
+                  _onBackPressed,
             ),
-            title: const Text(
+            title:
+                const Text(
               'إضافة إعلان',
               style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.w800,
+                fontWeight:
+                    FontWeight.w800,
                 letterSpacing: .2,
               ),
             ),
           ),
-          body: _loadingCategories
-              ? const Center(
-                  child: CircularProgressIndicator(),
-                )
-              : Form(
-                  key: _formKey,
-                  autovalidateMode:
-                      AutovalidateMode.onUserInteraction,
-                  child: ListView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior
-                            .onDrag,
-                    padding:
-                        const EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      30,
+
+          body:
+              _loadingCategories
+                  ? const Center(
+                      child:
+                          CircularProgressIndicator(),
+                    )
+                  : Form(
+                      key: _formKey,
+                      autovalidateMode:
+                          AutovalidateMode
+                              .onUserInteraction,
+                      child:
+                          ListView(
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior
+                                .onDrag,
+                        padding:
+                            const EdgeInsets
+                                .fromLTRB(
+                          16,
+                          16,
+                          16,
+                          30,
+                        ),
+                        children: [
+                          // ==================================================
+                          // رسالة الإدارة - في أعلى الصفحة
+                          // ==================================================
+
+                          _buildAdminMessage(),
+
+                          if (_adminMessageActive)
+                            const SizedBox(
+                              height: 12,
+                            ),
+
+                          // ==================================================
+                          // إشعار المراجعة
+                          // ==================================================
+
+                          _buildReviewNotice(),
+
+                          const SizedBox(
+                            height: 14,
+                          ),
+
+                          // ==================================================
+                          // بيانات الإعلان
+                          // ==================================================
+
+                          _buildDetailsSection(),
+
+                          const SizedBox(
+                            height: 12,
+                          ),
+
+                          // ==================================================
+                          // الصور
+                          // ==================================================
+
+                          ListingSectionCard(
+                            child:
+                                ListingImagesSection(
+                              items:
+                                  _images,
+                              enabled:
+                                  !_saving,
+                              onAdd:
+                                  _addImages,
+                              onRemove:
+                                  _removeImage,
+                              onMakeCover:
+                                  _makeCover,
+                            ),
+                          ),
+
+                          const SizedBox(
+                            height: 12,
+                          ),
+
+                          // ==================================================
+                          // السعر
+                          // ==================================================
+
+                          ListingSectionCard(
+                            child:
+                                ListingPriceSection(
+                              priceType:
+                                  _priceType,
+                              controller:
+                                  _priceController,
+                              onPriceTypeChanged:
+                                  (value) {
+                                setState(() {
+                                  _priceType =
+                                      value;
+                                });
+                              },
+                            ),
+                          ),
+
+                          const SizedBox(
+                            height: 12,
+                          ),
+
+                          // ==================================================
+                          // الحالة
+                          // ==================================================
+
+                          ListingSectionCard(
+                            child:
+                                ListingConditionSection(
+                              condition:
+                                  _condition,
+                              onChanged:
+                                  (value) {
+                                setState(() {
+                                  _condition =
+                                      value;
+                                });
+                              },
+                            ),
+                          ),
+
+                          const SizedBox(
+                            height: 12,
+                          ),
+
+                          // ==================================================
+                          // مدة ظهور الإعلان
+                          // ==================================================
+
+                          _buildDisplayDurationSection(),
+
+                          const SizedBox(
+                            height: 12,
+                          ),
+
+                          // ==================================================
+                          // الموقع والتواصل
+                          // ==================================================
+
+                          _buildContactSection(),
+
+                          const SizedBox(
+                            height: 18,
+                          ),
+
+                          // ==================================================
+                          // نشر الإعلان
+                          // ==================================================
+
+                          _buildPublishButton(),
+                        ],
+                      ),
                     ),
-                    children: [
-                      _buildReviewNotice(),
-
-                      const SizedBox(height: 14),
-
-                      _buildDetailsSection(),
-
-                      const SizedBox(height: 12),
-
-                      ListingSectionCard(
-                        child: ListingImagesSection(
-                          items: _images,
-                          enabled: !_saving,
-                          onAdd: _addImages,
-                          onRemove: _removeImage,
-                          onMakeCover: _makeCover,
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      ListingSectionCard(
-                        child: ListingPriceSection(
-                          priceType: _priceType,
-                          controller: _priceController,
-                          onPriceTypeChanged: (value) {
-                            setState(() {
-                              _priceType = value;
-                            });
-                          },
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      ListingSectionCard(
-                        child: ListingConditionSection(
-                          condition: _condition,
-                          onChanged: (value) {
-                            setState(() {
-                              _condition = value;
-                            });
-                          },
-                        ),
-                      ),
-
-                      const SizedBox(height: 12),
-
-                      // مدة ظهور الإعلان.
-                      _buildDisplayDurationSection(),
-
-                      const SizedBox(height: 12),
-
-                      _buildContactSection(),
-
-                      const SizedBox(height: 18),
-
-                      _buildPublishButton(),
-                    ],
-                  ),
-                ),
         ),
       ),
     );
