@@ -23,7 +23,7 @@ jobs:
 
       - name: Create Flutter Android project
         run: |
-          flutter create --platforms=android --project-name dalalat_shabsha .
+          flutter create --platforms=android --org com.khabeir --project-name dalalatshabasha .
 
       - name: Add Android Internet permission
         run: |
