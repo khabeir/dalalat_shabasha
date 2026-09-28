@@ -1,0 +1,35 @@
+# Dart / Flutter
+.dart_tool/
+.packages
+.pub/
+.pub-cache/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+
+# Generated Android platform
+android/
+
+# IDE
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
+
+# Coverage
+coverage/
+
+# Local environment / secrets
+.env
+.env.*
+!.env.example
+
+# Android signing
+*.jks
+*.keystore
+key.properties
+
+# Generated files
+*.iml
