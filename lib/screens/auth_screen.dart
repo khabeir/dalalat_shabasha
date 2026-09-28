@@ -15,21 +15,21 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   // ============================================================
-  // Ø±ÙˆØ§Ø¨Ø· Ø§Ù„ØªØ·Ø¨ÙŠÙ‚
+  // ÑæÇÈØ ÇáÊØÈíŞ
   // ============================================================
 
   static const _privacyPolicyUrl = '';
   static const _termsUrl = '';
 
   // ============================================================
-  // Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„Ø¯Ø¹Ù…
+  // ÈíÇäÇÊ ÇáÏÚã
   // ============================================================
 
   static const _supportWhatsAppNumber = '0914111214';
   static const _supportPhoneNumber = '0113339644';
 
   // ============================================================
-  // Ø§Ù„Ù†Ù…ÙˆØ°Ø¬
+  // ÇáäãæĞÌ
   // ============================================================
 
   final _formKey = GlobalKey<FormState>();
@@ -48,7 +48,7 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _obscureConfirmPassword = true;
 
   // ============================================================
-  // Ø¯ÙˆØ±Ø© Ø­ÙŠØ§Ø© Ø§Ù„Ø´Ø§Ø´Ø©
+  // ÏæÑÉ ÍíÇÉ ÇáÔÇÔÉ
   // ============================================================
 
   @override
@@ -61,7 +61,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø§Ù„Ø±Ø³Ø§Ø¦Ù„
+  // ÇáÑÓÇÆá
   // ============================================================
 
   void _showMessage(String message) {
@@ -85,11 +85,11 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // ØªØ­ÙˆÙŠÙ„ Ø§Ù„Ø£Ø±Ù‚Ø§Ù… Ø§Ù„Ø¹Ø±Ø¨ÙŠØ©
+  // ÊÍæíá ÇáÃÑŞÇã ÇáÚÑÈíÉ
   // ============================================================
 
   String _toWesternDigits(String input) {
-    const arabic = 'Ù Ù¡Ù¢Ù£Ù¤Ù¥Ù¦Ù§Ù¨Ù©';
+    const arabic = '';
 
     final buffer = StringBuffer();
 
@@ -105,7 +105,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // ØªØ·Ø¨ÙŠØ¹ Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø§Ù„Ø³ÙˆØ¯Ø§Ù†ÙŠ
+  // ÊØÈíÚ ÑŞã ÇáåÇÊİ ÇáÓæÏÇäí
   // ============================================================
 
   String? _normalizePhone(
@@ -121,7 +121,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (phone.startsWith('00')) {
       phone = '+${phone.substring(2)}';
     } else if (phone.startsWith('+')) {
-      // ÙƒÙ…Ø§ Ù‡Ùˆ.
+      // ßãÇ åæ.
     } else if (phone.startsWith('0')) {
       phone = '+249${phone.substring(1)}';
     } else if (phone.startsWith('249')) {
@@ -148,7 +148,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ø§Ù„Ø¨Ø±ÙŠØ¯
+  // ÇáÊÍŞŞ ãä ÇáÈÑíÏ
   // ============================================================
 
   bool _isValidEmail(String value) {
@@ -162,8 +162,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (text.isEmpty) {
       return _usePhone
-          ? 'Ø£Ø¯Ø®Ù„ Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ'
-          : 'Ø£Ø¯Ø®Ù„ Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ';
+          ? 'ÃÏÎá ÑŞã ÇáåÇÊİ'
+          : 'ÃÏÎá ÇáÈÑíÏ ÇáÅáßÊÑæäí';
     }
 
     if (_usePhone) {
@@ -172,22 +172,22 @@ class _AuthScreenState extends State<AuthScreen> {
                 strict: !_isLogin,
               ) ==
               null
-          ? 'Ø£Ø¯Ø®Ù„ Ø±Ù‚Ù… Ù‡Ø§ØªÙ ØµØ­ÙŠØ­'
+          ? 'ÃÏÎá ÑŞã åÇÊİ ÕÍíÍ'
           : null;
     }
 
     return _isValidEmail(text)
         ? null
-        : 'Ø£Ø¯Ø®Ù„ Ø¨Ø±ÙŠØ¯Ø§Ù‹ Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠØ§Ù‹ ØµØ­ÙŠØ­Ø§Ù‹';
+        : 'ÃÏÎá ÈÑíÏÇğ ÅáßÊÑæäíÇğ ÕÍíÍÇğ';
   }
 
   String? _validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Ø£Ø¯Ø®Ù„ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±';
+      return 'ÃÏÎá ßáãÉ ÇáãÑæÑ';
     }
 
     if (value.length < 6) {
-      return 'ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† 6 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„';
+      return 'ßáãÉ ÇáãÑæÑ íÌÈ Ãä Êßæä 6 ÃÍÑİ Úáì ÇáÃŞá';
     }
 
     return null;
@@ -197,18 +197,18 @@ class _AuthScreenState extends State<AuthScreen> {
     final text = value?.trim() ?? '';
 
     if (text.isEmpty) {
-      return 'Ø£Ø¯Ø®Ù„ Ø§Ù„Ø§Ø³Ù… Ø§Ù„ÙƒØ§Ù…Ù„';
+      return 'ÃÏÎá ÇáÇÓã ÇáßÇãá';
     }
 
     if (text.length < 2) {
-      return 'Ø§Ù„Ø§Ø³Ù… Ù‚ØµÙŠØ± Ø¬Ø¯Ø§Ù‹';
+      return 'ÇáÇÓã ŞÕíÑ ÌÏÇğ';
     }
 
     return null;
   }
 
   // ============================================================
-  // ØªØ¨Ø¯ÙŠÙ„ Ø§Ù„ÙˆØ¶Ø¹
+  // ÊÈÏíá ÇáæÖÚ
   // ============================================================
 
   void _setMode(bool isLogin) {
@@ -238,7 +238,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø§Ù„Ø¥Ø±Ø³Ø§Ù„
+  // ÇáÅÑÓÇá
   // ============================================================
 
   Future<void> _submit() async {
@@ -278,7 +278,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„
+  // ÊÓÌíá ÇáÏÎæá
   // ============================================================
 
   Future<bool> _login() async {
@@ -289,7 +289,7 @@ class _AuthScreenState extends State<AuthScreen> {
       final phone = _normalizePhone(identifier);
 
       if (phone == null) {
-        _showMessage('Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ ØºÙŠØ± ØµØ­ÙŠØ­');
+        _showMessage('ÑŞã ÇáåÇÊİ ÛíÑ ÕÍíÍ');
         return false;
       }
 
@@ -302,7 +302,7 @@ class _AuthScreenState extends State<AuthScreen> {
       if (response['success'] != true) {
         _showMessage(
           response['message']?.toString() ??
-              'Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø£Ùˆ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ØºÙŠØ± ØµØ­ÙŠØ­Ø©',
+              'ÑŞã ÇáåÇÊİ Ãæ ßáãÉ ÇáãÑæÑ ÛíÑ ÕÍíÍÉ',
         );
 
         return false;
@@ -312,7 +312,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
       if (session == null) {
         _showMessage(
-          'ØªØ¹Ø°Ø± Ø¥Ù†Ø´Ø§Ø¡ Ø¬Ù„Ø³Ø© ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„',
+          'ÊÚĞÑ ÅäÔÇÁ ÌáÓÉ ÊÓÌíá ÇáÏÎæá',
         );
 
         return false;
@@ -326,13 +326,13 @@ class _AuthScreenState extends State<AuthScreen> {
       );
     }
 
-    _showMessage('ØªÙ… ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø¨Ù†Ø¬Ø§Ø­');
+    _showMessage('Êã ÊÓÌíá ÇáÏÎæá ÈäÌÇÍ');
 
     return true;
   }
 
   // ============================================================
-  // Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨
+  // ÅäÔÇÁ ÇáÍÓÇÈ
   // ============================================================
 
   Future<bool> _register() async {
@@ -341,7 +341,7 @@ class _AuthScreenState extends State<AuthScreen> {
     final fullName = _nameController.text.trim();
 
     // ------------------------------------------------------------
-    // Ø§Ù„ØªØ³Ø¬ÙŠÙ„ Ø¨Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ
+    // ÇáÊÓÌíá ÈÇáÈÑíÏ ÇáÅáßÊÑæäí
     // ------------------------------------------------------------
 
     if (!_usePhone) {
@@ -354,21 +354,21 @@ class _AuthScreenState extends State<AuthScreen> {
       );
 
       if (response.user == null) {
-        _showMessage('ØªØ¹Ø°Ø± Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨');
+        _showMessage('ÊÚĞÑ ÅäÔÇÁ ÇáÍÓÇÈ');
         return false;
       }
 
       if (response.session != null) {
         _showMessage(
-          'ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨ ÙˆØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø¨Ù†Ø¬Ø§Ø­',
+          'Êã ÅäÔÇÁ ÇáÍÓÇÈ æÊÓÌíá ÇáÏÎæá ÈäÌÇÍ',
         );
 
         return true;
       }
 
       _showMessage(
-        'ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨. Ø£ÙƒÙ‘Ø¯ Ø¨Ø±ÙŠØ¯Ùƒ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ Ù…Ù† Ø§Ù„Ø±Ø³Ø§Ù„Ø© '
-        'Ø§Ù„ØªÙŠ ÙˆØµÙ„ØªÙƒØŒ Ø«Ù… Ø³Ø¬Ù‘Ù„ Ø§Ù„Ø¯Ø®ÙˆÙ„.',
+        'Êã ÅäÔÇÁ ÇáÍÓÇÈ. ÃßøÏ ÈÑíÏß ÇáÅáßÊÑæäí ãä ÇáÑÓÇáÉ '
+        'ÇáÊí æÕáÊß¡ Ëã ÓÌøá ÇáÏÎæá.',
       );
 
       if (mounted) {
@@ -383,7 +383,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
 
     // ------------------------------------------------------------
-    // Ø§Ù„ØªØ³Ø¬ÙŠÙ„ Ø¨Ø§Ù„Ù‡Ø§ØªÙ
+    // ÇáÊÓÌíá ÈÇáåÇÊİ
     // ------------------------------------------------------------
 
     final phone = _normalizePhone(
@@ -392,7 +392,7 @@ class _AuthScreenState extends State<AuthScreen> {
     );
 
     if (phone == null) {
-      _showMessage('Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ ØºÙŠØ± ØµØ­ÙŠØ­');
+      _showMessage('ÑŞã ÇáåÇÊİ ÛíÑ ÕÍíÍ');
       return false;
     }
 
@@ -406,7 +406,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (response['success'] != true) {
       _showMessage(
         response['message']?.toString() ??
-            'ØªØ¹Ø°Ø± Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨',
+            'ÊÚĞÑ ÅäÔÇÁ ÇáÍÓÇÈ',
       );
 
       return false;
@@ -416,7 +416,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (session == null) {
       _showMessage(
-        'ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨ ÙˆÙ„ÙƒÙ† ØªØ¹Ø°Ø± ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„',
+        'Êã ÅäÔÇÁ ÇáÍÓÇÈ æáßä ÊÚĞÑ ÊÓÌíá ÇáÏÎæá',
       );
 
       return false;
@@ -425,14 +425,14 @@ class _AuthScreenState extends State<AuthScreen> {
     await _setSupabaseSession(session);
 
     _showMessage(
-      'ØªÙ… Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨ ÙˆØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ø¨Ù†Ø¬Ø§Ø­',
+      'Êã ÅäÔÇÁ ÇáÍÓÇÈ æÊÓÌíá ÇáÏÎæá ÈäÌÇÍ',
     );
 
     return true;
   }
 
   // ============================================================
-  // Edge Function Ø§Ù„Ø®Ø§ØµØ© Ø¨Ø§Ù„Ù‡Ø§ØªÙ
+  // Edge Function ÇáÎÇÕÉ ÈÇáåÇÊİ
   // ============================================================
 
   Future<Map<String, dynamic>> _phoneAuthRequest({
@@ -459,7 +459,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
 
     throw Exception(
-      'Ø§Ø³ØªØ¬Ø§Ø¨Ø© ØºÙŠØ± ØµØ­ÙŠØ­Ø© Ù…Ù† Ø®Ø§Ø¯Ù… ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ù‡Ø§ØªÙ',
+      'ÇÓÊÌÇÈÉ ÛíÑ ÕÍíÍÉ ãä ÎÇÏã ÊÓÌíá ÇáåÇÊİ',
     );
   }
 
@@ -482,7 +482,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (refreshToken == null ||
         refreshToken.isEmpty) {
       throw Exception(
-        'Ø¨ÙŠØ§Ù†Ø§Øª Ø¬Ù„Ø³Ø© ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„ Ù†Ø§Ù‚ØµØ©',
+        'ÈíÇäÇÊ ÌáÓÉ ÊÓÌíá ÇáÏÎæá äÇŞÕÉ',
       );
     }
 
@@ -492,7 +492,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ù…Ø¹Ø§Ù„Ø¬Ø© Ø§Ù„Ø£Ø®Ø·Ø§Ø¡
+  // ãÚÇáÌÉ ÇáÃÎØÇÁ
   // ============================================================
 
   bool _isNetworkError(Object error) {
@@ -511,8 +511,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
   String _errorMessage(Object error) {
     if (_isNetworkError(error)) {
-      return 'ØªØ¹Ø°Ø± Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø¥Ù†ØªØ±Ù†Øª. '
-          'ØªØ­Ù‚Ù‚ Ù…Ù† Ø§ØªØµØ§Ù„Ùƒ ÙˆØ­Ø§ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰.';
+      return 'ÊÚĞÑ ÇáÇÊÕÇá ÈÇáÅäÊÑäÊ. '
+          'ÊÍŞŞ ãä ÇÊÕÇáß æÍÇæá ãÑÉ ÃÎÑì.';
     }
 
     if (error is AuthException) {
@@ -524,12 +524,12 @@ class _AuthScreenState extends State<AuthScreen> {
     }
 
     if (error.toString().contains(
-          'Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø£Ùˆ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±',
+          'ÑŞã ÇáåÇÊİ Ãæ ßáãÉ ÇáãÑæÑ',
         )) {
-      return 'Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø£Ùˆ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ØºÙŠØ± ØµØ­ÙŠØ­Ø©';
+      return 'ÑŞã ÇáåÇÊİ Ãæ ßáãÉ ÇáãÑæÑ ÛíÑ ÕÍíÍÉ';
     }
 
-    return 'Ø­Ø¯Ø« Ø®Ø·Ø£ ØºÙŠØ± Ù…ØªÙˆÙ‚Ø¹. Ø­Ø§ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰.';
+    return 'ÍÏË ÎØÃ ÛíÑ ãÊæŞÚ. ÍÇæá ãÑÉ ÃÎÑì.';
   }
 
   String _extractFunctionError(
@@ -546,19 +546,19 @@ class _AuthScreenState extends State<AuthScreen> {
     }
 
     if (details != null &&
-        details.toString().contains('Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ')) {
-      return 'Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø£Ùˆ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ØºÙŠØ± ØµØ­ÙŠØ­Ø©';
+        details.toString().contains('ÑŞã ÇáåÇÊİ')) {
+      return 'ÑŞã ÇáåÇÊİ Ãæ ßáãÉ ÇáãÑæÑ ÛíÑ ÕÍíÍÉ';
     }
 
     if (error.status == 429) {
-      return 'Ù…Ø­Ø§ÙˆÙ„Ø§Øª ÙƒØ«ÙŠØ±Ø©. Ø§Ù†ØªØ¸Ø± Ù‚Ù„ÙŠÙ„Ø§Ù‹ Ø«Ù… Ø­Ø§ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰.';
+      return 'ãÍÇæáÇÊ ßËíÑÉ. ÇäÊÙÑ ŞáíáÇğ Ëã ÍÇæá ãÑÉ ÃÎÑì.';
     }
 
     if (error.status >= 500) {
-      return 'Ø§Ù„Ø®Ø§Ø¯Ù… Ù…Ø´ØºÙˆÙ„ Ø­Ø§Ù„ÙŠØ§Ù‹. Ø­Ø§ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰ Ø¨Ø¹Ø¯ Ù‚Ù„ÙŠÙ„.';
+      return 'ÇáÎÇÏã ãÔÛæá ÍÇáíÇğ. ÍÇæá ãÑÉ ÃÎÑì ÈÚÏ Şáíá.';
     }
 
-    return 'ØªØ¹Ø°Ø± Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø®Ø§Ø¯Ù… ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ù‡Ø§ØªÙ';
+    return 'ÊÚĞÑ ÇáÇÊÕÇá ÈÎÇÏã ÊÓÌíá ÇáåÇÊİ';
   }
 
   String _translateAuthError(String message) {
@@ -566,41 +566,41 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (text.contains('invalid login credentials')) {
       return _usePhone
-          ? 'Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ Ø£Ùˆ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ØºÙŠØ± ØµØ­ÙŠØ­Ø©'
-          : 'Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ Ø£Ùˆ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ØºÙŠØ± ØµØ­ÙŠØ­Ø©';
+          ? 'ÑŞã ÇáåÇÊİ Ãæ ßáãÉ ÇáãÑæÑ ÛíÑ ÕÍíÍÉ'
+          : 'ÇáÈÑíÏ ÇáÅáßÊÑæäí Ãæ ßáãÉ ÇáãÑæÑ ÛíÑ ÕÍíÍÉ';
     }
 
     if (text.contains('user already registered')) {
-      return 'Ù‡Ø°Ø§ Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ Ù…Ø³Ø¬Ù„ Ø¨Ø§Ù„ÙØ¹Ù„';
+      return 'åĞÇ ÇáÈÑíÏ ÇáÅáßÊÑæäí ãÓÌá ÈÇáİÚá';
     }
 
     if (text.contains('email address') &&
         text.contains('invalid')) {
-      return 'Ø£Ø¯Ø®Ù„ Ø¨Ø±ÙŠØ¯Ø§Ù‹ Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠØ§Ù‹ ØµØ­ÙŠØ­Ø§Ù‹';
+      return 'ÃÏÎá ÈÑíÏÇğ ÅáßÊÑæäíÇğ ÕÍíÍÇğ';
     }
 
     if (text.contains('password should be at least')) {
-      return 'ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† 6 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„';
+      return 'ßáãÉ ÇáãÑæÑ íÌÈ Ãä Êßæä 6 ÃÍÑİ Úáì ÇáÃŞá';
     }
 
     if (text.contains('weak password')) {
-      return 'ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø¶Ø¹ÙŠÙØ©ØŒ Ø§Ø®ØªØ± ÙƒÙ„Ù…Ø© Ù…Ø±ÙˆØ± Ø£Ù‚ÙˆÙ‰';
+      return 'ßáãÉ ÇáãÑæÑ ÖÚíİÉ¡ ÇÎÊÑ ßáãÉ ãÑæÑ ÃŞæì';
     }
 
     if (text.contains('email not confirmed')) {
-      return 'ÙŠØ±Ø¬Ù‰ ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ Ø£ÙˆÙ„Ø§Ù‹';
+      return 'íÑÌì ÊÃßíÏ ÇáÈÑíÏ ÇáÅáßÊÑæäí ÃæáÇğ';
     }
 
     if (text.contains('too many requests') ||
         text.contains('rate limit')) {
-      return 'ØªÙ… ØªØ¬Ø§ÙˆØ² Ø¹Ø¯Ø¯ Ø§Ù„Ù…Ø­Ø§ÙˆÙ„Ø§Øª. Ø­Ø§ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰ Ù„Ø§Ø­Ù‚Ø§Ù‹';
+      return 'Êã ÊÌÇæÒ ÚÏÏ ÇáãÍÇæáÇÊ. ÍÇæá ãÑÉ ÃÎÑì áÇÍŞÇğ';
     }
 
-    return 'ØªØ¹Ø°Ø± Ø¥ÙƒÙ…Ø§Ù„ Ø§Ù„Ø¹Ù…Ù„ÙŠØ©. Ø­Ø§ÙˆÙ„ Ù…Ø±Ø© Ø£Ø®Ø±Ù‰.';
+    return 'ÊÚĞÑ ÅßãÇá ÇáÚãáíÉ. ÍÇæá ãÑÉ ÃÎÑì.';
   }
 
   // ============================================================
-  // Ø§Ù„Ø±ÙˆØ§Ø¨Ø·
+  // ÇáÑæÇÈØ
   // ============================================================
 
   Future<void> _launch(
@@ -624,12 +624,12 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _openLink(String url) {
     return _launch(
       Uri.parse(url),
-      'ØªØ¹Ø°Ø± ÙØªØ­ Ø§Ù„Ø±Ø§Ø¨Ø·',
+      'ÊÚĞÑ İÊÍ ÇáÑÇÈØ',
     );
   }
 
   // ============================================================
-  // Ø²Ø®Ø§Ø±Ù Ø§Ù„Ù‡ÙŠØ¯Ø± V3
+  // ÒÎÇÑİ ÇáåíÏÑ V3
   // ============================================================
 
   Widget _buildHeaderDecorations() {
@@ -639,7 +639,7 @@ class _AuthScreenState extends State<AuthScreen> {
           clipBehavior: Clip.hardEdge,
           children: [
             // ======================================================
-            // ØªÙˆÙ‡Ø¬ Ø¨Ù†ÙØ³Ø¬ÙŠ
+            // ÊæåÌ ÈäİÓÌí
             // ======================================================
 
             Positioned(
@@ -658,7 +658,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
 
             // ======================================================
-            // Ø¯Ø§Ø¦Ø±Ø© Ø°Ù‡Ø¨ÙŠØ© ÙƒØ¨ÙŠØ±Ø©
+            // ÏÇÆÑÉ ĞåÈíÉ ßÈíÑÉ
             // ======================================================
 
             Positioned(
@@ -677,7 +677,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
 
             // ======================================================
-            // Ù‚ÙˆØ³ Ø°Ù‡Ø¨ÙŠ
+            // ŞæÓ ĞåÈí
             // ======================================================
 
             Positioned(
@@ -699,7 +699,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
 
             // ======================================================
-            // Ù‚ÙˆØ³ Ø°Ù‡Ø¨ÙŠ Ø«Ø§Ù†ÙŠ
+            // ŞæÓ ĞåÈí ËÇäí
             // ======================================================
 
             Positioned(
@@ -721,7 +721,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
 
             // ======================================================
-            // Ø¯Ø§Ø¦Ø±Ø© Ø²Ø®Ø±ÙÙŠØ© ÙŠØ³Ø§Ø±
+            // ÏÇÆÑÉ ÒÎÑİíÉ íÓÇÑ
             // ======================================================
 
             Positioned(
@@ -740,7 +740,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
 
             // ======================================================
-            // Ù‚ÙˆØ³ ÙŠØ³Ø§Ø±
+            // ŞæÓ íÓÇÑ
             // ======================================================
 
             Positioned(
@@ -762,7 +762,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
 
             // ======================================================
-            // Ø®Ø· Ù‚Ø·Ø±ÙŠ Ø¹Ù„ÙˆÙŠ
+            // ÎØ ŞØÑí Úáæí
             // ======================================================
 
             Positioned(
@@ -785,7 +785,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
 
             // ======================================================
-            // Ø®Ø· Ù‚Ø·Ø±ÙŠ Ø°Ù‡Ø¨ÙŠ
+            // ÎØ ŞØÑí ĞåÈí
             // ======================================================
 
             Positioned(
@@ -808,7 +808,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
 
             // ======================================================
-            // Ù†Ù‚Ø§Ø· Ø°Ù‡Ø¨ÙŠØ©
+            // äŞÇØ ĞåÈíÉ
             // ======================================================
 
             Positioned(
@@ -874,91 +874,61 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø§Ù„Ù‡ÙŠØ¯Ø± Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠ V3
+  // ÇáåíÏÑ ÇáÑÆíÓí V3
   // ============================================================
 
   Widget _buildHeader() {
-    return SizedBox(
-      width: double.infinity,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          _buildHeaderDecorations(),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: 50,
+        ),
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ==================================================
+              // ÇáÔÚÇÑ
+              // ==================================================
 
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 50,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ==================================================
-                // Ø§Ù„Ø´Ø¹Ø§Ø±
-                // ==================================================
+              const BrandWordmark(
+                logoSize: 66,
+                titleSize: 27,
+              ),
 
-                const BrandWordmark(
-                  logoSize: 66,
-                  titleSize: 27,
-                ),
+              const SizedBox(height: 12),
 
-                const SizedBox(height: 10),
+              // ==================================================
+              // ÇáÎØ ÇáĞåÈí
+              // ==================================================
 
-                // ==================================================
-                // Ø§Ù„ÙˆØµÙ
-                // ==================================================
-
-                AnimatedSwitcher(
-                  duration: const Duration(
-                    milliseconds: 220,
-                  ),
-                  child: Text(
-                    _isLogin
-                        ? 'Ø³ÙˆÙ‚Ùƒ Ø§Ù„Ù…Ø­Ù„ÙŠ ÙÙŠ Ø´Ø¨Ø´Ø©'
-                        : 'Ø³ÙˆÙ‚Ùƒ Ø§Ù„Ù…Ø­Ù„ÙŠ ÙÙŠ Ø´Ø¨Ø´Ø©',
-                    key: ValueKey(_isLogin),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w700,
-                      height: 1.45,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 13),
-
-                // ==================================================
-                // Ø§Ù„Ø®Ø· Ø§Ù„Ø°Ù‡Ø¨ÙŠ
-                // ==================================================
-
-                Container(
-                  width: 62,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Brand.gold,
-                    borderRadius:
-                        BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Brand.gold.withValues(
-                          alpha: 0.30,
-                        ),
-                        blurRadius: 8,
+              Container(
+                width: 62,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Brand.gold,
+                  borderRadius:
+                      BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Brand.gold.withValues(
+                        alpha: 0.30,
                       ),
-                    ],
-                  ),
+                      blurRadius: 8,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
 
   // ============================================================
-  // Ø²Ø± Ø§Ù„Ø±Ø¬ÙˆØ¹ Ø§Ù„Ø¯Ø§Ø¦Ø±ÙŠ
+  // ÒÑ ÇáÑÌæÚ ÇáÏÇÆÑí
   // ============================================================
 
   Widget _buildBackButton() {
@@ -986,7 +956,7 @@ class _AuthScreenState extends State<AuthScreen> {
         ],
       ),
       child: IconButton(
-        tooltip: 'Ø±Ø¬ÙˆØ¹',
+        tooltip: 'ÑÌæÚ',
         padding: EdgeInsets.zero,
         onPressed: () {
           Navigator.maybePop(context);
@@ -1001,7 +971,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø§Ù„Ù…Ø¨Ø¯Ù„ Ø§Ù„Ù…Ù‚Ø³Ù…
+  // ÇáãÈÏá ÇáãŞÓã
   // ============================================================
 
   Widget _buildPillSwitch<T>({
@@ -1105,12 +1075,12 @@ class _AuthScreenState extends State<AuthScreen> {
         (
           true,
           null,
-          'ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„',
+          'ÊÓÌíá ÇáÏÎæá',
         ),
         (
           false,
           null,
-          'Ø­Ø³Ø§Ø¨ Ø¬Ø¯ÙŠØ¯',
+          'ÍÓÇÈ ÌÏíÏ',
         ),
       ],
       selected: _isLogin,
@@ -1124,12 +1094,12 @@ class _AuthScreenState extends State<AuthScreen> {
         (
           true,
           Icons.phone_outlined,
-          'Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ',
+          'ÑŞã ÇáåÇÊİ',
         ),
         (
           false,
           Icons.email_outlined,
-          'Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ',
+          'ÇáÈÑíÏ ÇáÅáßÊÑæäí',
         ),
       ],
       selected: _usePhone,
@@ -1138,7 +1108,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // ØªÙ†Ø³ÙŠÙ‚ Ø§Ù„Ø­Ù‚ÙˆÙ„
+  // ÊäÓíŞ ÇáÍŞæá
   // ============================================================
 
   InputDecoration _fieldDecoration({
@@ -1217,7 +1187,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø­Ù‚ÙˆÙ„ Ø§Ù„Ù†Ù…ÙˆØ°Ø¬
+  // ÍŞæá ÇáäãæĞÌ
   // ============================================================
 
   Widget _buildFields() {
@@ -1237,7 +1207,7 @@ class _AuthScreenState extends State<AuthScreen> {
               AutofillHints.name,
             ],
             decoration: _fieldDecoration(
-              label: 'Ø§Ù„Ø§Ø³Ù… Ø§Ù„ÙƒØ§Ù…Ù„',
+              label: 'ÇáÇÓã ÇáßÇãá',
               icon:
                   Icons.person_outline_rounded,
             ),
@@ -1265,20 +1235,20 @@ class _AuthScreenState extends State<AuthScreen> {
               ? [
                   FilteringTextInputFormatter.allow(
                     RegExp(
-                      r'[0-9Ù -Ù©+\s\-]',
+                      r'[0-9-+\s\-]',
                     ),
                   ),
                 ]
               : null,
           decoration: _fieldDecoration(
             label: _usePhone
-                ? 'Ø±Ù‚Ù… Ø§Ù„Ù‡Ø§ØªÙ'
-                : 'Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ',
+                ? 'ÑŞã ÇáåÇÊİ'
+                : 'ÇáÈÑíÏ ÇáÅáßÊÑæäí',
             hint: _usePhone
-                ? '0912345678 Ù…Ø«Ù„Ø§'
+                ? '0912345678 ãËáÇ'
                 : 'example@email.com',
             helper: _usePhone && !_isLogin
-                ? 'Ø±Ù‚Ù… Ø³ÙˆØ¯Ø§Ù†ÙŠØŒ Ù…Ø«Ø§Ù„: 0912345678'
+                ? 'ÑŞã ÓæÏÇäí¡ ãËÇá: 0912345678'
                 : null,
             icon: _usePhone
                 ? Icons.phone_outlined
@@ -1304,16 +1274,16 @@ class _AuthScreenState extends State<AuthScreen> {
                 : AutofillHints.newPassword,
           ],
           decoration: _fieldDecoration(
-            label: 'ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±',
+            label: 'ßáãÉ ÇáãÑæÑ',
             icon:
                 Icons.lock_outline_rounded,
             helper: _isLogin
                 ? null
-                : '6 Ø£Ø­Ø±Ù Ø¹Ù„Ù‰ Ø§Ù„Ø£Ù‚Ù„',
+                : '6 ÃÍÑİ Úáì ÇáÃŞá',
             suffixIcon: IconButton(
               tooltip: _obscurePassword
-                  ? 'Ø¥Ø¸Ù‡Ø§Ø±'
-                  : 'Ø¥Ø®ÙØ§Ø¡',
+                  ? 'ÅÙåÇÑ'
+                  : 'ÅÎİÇÁ',
               onPressed: () {
                 setState(
                   () => _obscurePassword =
@@ -1352,14 +1322,14 @@ class _AuthScreenState extends State<AuthScreen> {
             ],
             decoration: _fieldDecoration(
               label:
-                  'ØªØ£ÙƒÙŠØ¯ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±',
+                  'ÊÃßíÏ ßáãÉ ÇáãÑæÑ',
               icon:
                   Icons.lock_reset_rounded,
               suffixIcon: IconButton(
                 tooltip:
                     _obscureConfirmPassword
-                        ? 'Ø¥Ø¸Ù‡Ø§Ø±'
-                        : 'Ø¥Ø®ÙØ§Ø¡',
+                        ? 'ÅÙåÇÑ'
+                        : 'ÅÎİÇÁ',
                 onPressed: () {
                   setState(() {
                     _obscureConfirmPassword =
@@ -1377,12 +1347,12 @@ class _AuthScreenState extends State<AuthScreen> {
             validator: (value) {
               if (value == null ||
                   value.isEmpty) {
-                return 'Ø£ÙƒØ¯ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ±';
+                return 'ÃßÏ ßáãÉ ÇáãÑæÑ';
               }
 
               if (value !=
                   _passwordController.text) {
-                return 'ÙƒÙ„Ù…ØªØ§ Ø§Ù„Ù…Ø±ÙˆØ± ØºÙŠØ± Ù…ØªØ·Ø§Ø¨Ù‚ØªÙŠÙ†';
+                return 'ßáãÊÇ ÇáãÑæÑ ÛíÑ ãÊØÇÈŞÊíä';
               }
 
               return null;
@@ -1396,14 +1366,14 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø²Ø± Ø§Ù„ØªØ³Ø¬ÙŠÙ„
+  // ÒÑ ÇáÊÓÌíá
   // ============================================================
 
   Widget _buildSubmitButton() {
     return BrandGoldButton(
       label: _isLogin
-          ? 'ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø¯Ø®ÙˆÙ„'
-          : 'Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨',
+          ? 'ÊÓÌíá ÇáÏÎæá'
+          : 'ÅäÔÇÁ ÇáÍÓÇÈ',
       icon: Icons.arrow_back_rounded,
       loading: _loading,
       onTap: _loading ? null : _submit,
@@ -1411,7 +1381,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø§Ù„Ø´Ø±ÙˆØ· ÙˆØ§Ù„Ø®ØµÙˆØµÙŠØ©
+  // ÇáÔÑæØ æÇáÎÕæÕíÉ
   // ============================================================
 
   Widget _buildLegalNote() {
@@ -1422,8 +1392,8 @@ class _AuthScreenState extends State<AuthScreen> {
     return Column(
       children: [
         Text(
-          'Ø¨Ø¥Ù†Ø´Ø§Ø¡ Ø§Ù„Ø­Ø³Ø§Ø¨ ÙØ¥Ù†Ùƒ ØªÙˆØ§ÙÙ‚ Ø¹Ù„Ù‰ Ø´Ø±ÙˆØ· Ø§Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù… '
-          'ÙˆØ³ÙŠØ§Ø³Ø© Ø§Ù„Ø®ØµÙˆØµÙŠØ©.',
+          'ÈÅäÔÇÁ ÇáÍÓÇÈ İÅäß ÊæÇİŞ Úáì ÔÑæØ ÇáÇÓÊÎÏÇã '
+          'æÓíÇÓÉ ÇáÎÕæÕíÉ.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 12.5,
@@ -1443,7 +1413,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   onPressed: () =>
                       _openLink(_termsUrl),
                   child: const Text(
-                    'Ø´Ø±ÙˆØ· Ø§Ù„Ø§Ø³ØªØ®Ø¯Ø§Ù…',
+                    'ÔÑæØ ÇáÇÓÊÎÏÇã',
                   ),
                 ),
 
@@ -1455,7 +1425,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         _privacyPolicyUrl,
                       ),
                   child: const Text(
-                    'Ø³ÙŠØ§Ø³Ø© Ø§Ù„Ø®ØµÙˆØµÙŠØ©',
+                    'ÓíÇÓÉ ÇáÎÕæÕíÉ',
                   ),
                 ),
             ],
@@ -1465,7 +1435,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ø¯Ø®ÙˆÙ„
+  // ÈØÇŞÉ ÇáÏÎæá
   // ============================================================
 
   Widget _buildAuthCard() {
@@ -1557,7 +1527,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ø¯Ø¹Ù…
+  // ÈØÇŞÉ ÇáÏÚã
   // ============================================================
 
   Widget _buildSupportCard() {
@@ -1591,11 +1561,11 @@ class _AuthScreenState extends State<AuthScreen> {
           ),
           child: const SupportContactCard(
             title:
-                'Ù„Ø§ ØªØ³ØªØ·ÙŠØ¹ Ø§Ù„ØªØ³Ø¬ÙŠÙ„ Ø£Ùˆ Ø¥Ø¶Ø§ÙØ© Ø¥Ø¹Ù„Ø§Ù†ÙƒØŸ',
+                'áÇ ÊÓÊØíÚ ÇáÊÓÌíá Ãæ ÅÖÇİÉ ÅÚáÇäß¿',
             subtitle:
-                'ØªÙˆØ§ØµÙ„ Ù…Ø¹Ù†Ø§ ÙˆØ³Ù†Ø³Ø§Ø¹Ø¯ÙƒØŒ Ø£Ùˆ Ù†Ø¶ÙŠÙ Ø¥Ø¹Ù„Ø§Ù†Ùƒ '
-                'Ø¨Ø¯Ù„Ø§Ù‹ Ø¹Ù†Ùƒ. ÙˆØ¥Ù† Ù†Ø³ÙŠØª ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± '
-                'ÙÙ†Ø¹ÙŠØ¯ ØªØ¹ÙŠÙŠÙ†Ù‡Ø§ Ù„Ùƒ.',
+                'ÊæÇÕá ãÚäÇ æÓäÓÇÚÏß¡ Ãæ äÖíİ ÅÚáÇäß '
+                'ÈÏáÇğ Úäß. æÅä äÓíÊ ßáãÉ ÇáãÑæÑ '
+                'İäÚíÏ ÊÚííäåÇ áß.',
             whatsappNumber:
                 _supportWhatsAppNumber,
             phoneNumber:
@@ -1607,7 +1577,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   // ============================================================
-  // Ø§Ù„Ø¨Ù†Ø§Ø¡ Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠ
+  // ÇáÈäÇÁ ÇáÑÆíÓí
   // ============================================================
 
   @override
@@ -1626,7 +1596,7 @@ class _AuthScreenState extends State<AuthScreen> {
         body: Stack(
           children: [
             // ======================================================
-            // Ø§Ù„Ø®Ù„ÙÙŠØ©
+            // ÇáÎáİíÉ
             // ======================================================
 
             SingleChildScrollView(
@@ -1637,14 +1607,12 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 children: [
                   // ==================================================
-                  // Ø§Ù„Ù‡ÙŠØ¯Ø± V3
+                  // ÇáåíÏÑ V3
                   // ==================================================
 
                   Container(
                     width: double.infinity,
-                    height:
-                        topPadding + 245,
-
+                    height: topPadding + 250,
                     decoration:
                         const BoxDecoration(
                       gradient:
@@ -1660,26 +1628,32 @@ class _AuthScreenState extends State<AuthScreen> {
                         ],
                       ),
                     ),
-
-                    child: Padding(
-                      padding:
-                          EdgeInsets.only(
-                        top:
-                            topPadding + 38,
-                      ),
-                      child:
-                          _buildHeader(),
+                    child: Stack(
+                      children: [
+                        _buildHeaderDecorations(),
+                        Positioned.fill(
+                          child: Padding(
+                            padding:
+                                EdgeInsets.only(
+                              top: topPadding + 16,
+                              bottom: 40,
+                            ),
+                            child:
+                                _buildHeader(),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
 
                   // ==================================================
-                  // Ø¨Ø·Ø§Ù‚Ø© Ø§Ù„Ø¯Ø®ÙˆÙ„
+                  // ÈØÇŞÉ ÇáÏÎæá
                   // ==================================================
 
                   _buildAuthCard(),
 
                   // ==================================================
-                  // Ø§Ù„Ø¯Ø¹Ù…
+                  // ÇáÏÚã
                   // ==================================================
 
                   _buildSupportCard(),
@@ -1688,7 +1662,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ),
 
             // ========================================================
-            // Ø²Ø± Ø§Ù„Ø±Ø¬ÙˆØ¹ ÙÙˆÙ‚ Ø§Ù„Ù‡ÙŠØ¯Ø±
+            // ÒÑ ÇáÑÌæÚ İæŞ ÇáåíÏÑ
             // ========================================================
 
             Positioned(
