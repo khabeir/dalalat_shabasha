@@ -103,7 +103,7 @@ class CategoriesSection extends StatelessWidget {
     final tone = categoryColor(name, index);
 
     // نحافظ على نفس درجات الخلفية الموجودة في HomeScreen.
-    final bgTone = _backgroundTone(name, index);
+    final bgTone = _backgroundTone(index);
 
     return GestureDetector(
       onTap: onTap,
@@ -159,7 +159,7 @@ class CategoriesSection extends StatelessWidget {
     );
   }
 
-  Color _backgroundTone(String name, int index) {
+  Color _backgroundTone(int index) {
     switch (index % 6) {
       case 0:
         return const Color(0xFFEFE7FF);

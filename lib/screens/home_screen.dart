@@ -1600,7 +1600,6 @@ Future<void> _loadListings({bool reset = true}) async {
             ),
             bottomNavigationBar:
     HomeBottomNavigation(
-  isDark: _isDark,
   cardColor: _cardColor,
   onHome: _clearFilters,
   onMyListings: _openMyListings,

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
 class HomeBottomNavigation extends StatelessWidget {
-  final bool isDark;
   final Color cardColor;
 
   final VoidCallback onHome;
@@ -15,7 +14,6 @@ class HomeBottomNavigation extends StatelessWidget {
 
   const HomeBottomNavigation({
     super.key,
-    required this.isDark,
     required this.cardColor,
     required this.onHome,
     required this.onMyListings,
