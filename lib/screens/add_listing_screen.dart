@@ -202,43 +202,51 @@ class _AddListingScreenState extends State<AddListingScreen> {
   // ============================================================
 
   Future<void> _loadAdminMessage() async {
-    try {
-      final response = await _supabase
-          .from('add_listing_admin_message')
-          .select('message, is_active')
-          .eq('id', 1)
-          .eq('is_active', true)
-          .maybeSingle();
+  try {
+    final response = await _supabase
+        .from('add_listing_admin_message')
+        .select('id, message, is_active')
+        .eq('id', 1)
+        .maybeSingle();
 
-      if (!mounted) return;
+    debugPrint('========================================');
+    debugPrint('ADMIN MESSAGE RESPONSE: $response');
+    debugPrint('========================================');
 
-      final message =
-          response?['message']?.toString().trim();
+    if (!mounted) return;
 
-      setState(() {
-        _adminMessage =
-            message != null && message.isNotEmpty
-                ? message
-                : null;
-
-        _adminMessageActive =
-            response?['is_active'] == true &&
-            (_adminMessage?.isNotEmpty ?? false);
-      });
-    } catch (e) {
-      debugPrint(
-        'loadAdminMessage error: $e',
-      );
-
-      // إذا فشل تحميل الرسالة، لا نعطل صفحة إضافة الإعلان.
-      if (!mounted) return;
-
+    if (response == null) {
       setState(() {
         _adminMessage = null;
         _adminMessageActive = false;
       });
+      return;
     }
+
+    final message = response['message']?.toString().trim();
+    final isActive = response['is_active'] == true;
+
+    setState(() {
+      _adminMessage =
+          message != null && message.isNotEmpty ? message : null;
+
+      _adminMessageActive =
+          isActive && (_adminMessage?.isNotEmpty ?? false);
+    });
+  } catch (e, stackTrace) {
+    debugPrint('========================================');
+    debugPrint('ADMIN MESSAGE ERROR: $e');
+    debugPrint('$stackTrace');
+    debugPrint('========================================');
+
+    if (!mounted) return;
+
+    setState(() {
+      _adminMessage = null;
+      _adminMessageActive = false;
+    });
   }
+}
 
   // ============================================================
   // الصور
