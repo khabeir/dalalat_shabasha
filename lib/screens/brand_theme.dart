@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../core/theme/app_colors.dart';
 
 // =============================================================
 // هوية دلالة شبشة: الألوان والشعار والخلفية المرسومة، مستخدمة في
@@ -10,27 +11,38 @@ import 'package:flutter/material.dart';
 class Brand {
   Brand._();
 
-  static const primary = Color(0xFF5B2DB5);
-  static const primaryDark = Color(0xFF3B1785);
-  static const soft = Color(0xFFEFE9FF);
-  static const ink = Color(0xFF241A55);
-  static const orange = Color(0xFFFF9F1C);
-  static const gold = Color(0xFFFFC93C);
+  // الألوان الأساسية مصدرها AppColors لتجنب تكرار القيم.
+  static const primary = AppColors.brand;
+  static const primaryDark = AppColors.brandDark;
+  static const soft = AppColors.brandSoft;
+  static const ink = AppColors.ink;
+  static const orange = AppColors.orange;
+  static const gold = AppColors.gold;
 
   static const gradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF8A5CE6), primary],
+    colors: [
+      Color(0xFF8A5CE6),
+      AppColors.brand,
+    ],
   );
 
   static const bannerGradient = LinearGradient(
     begin: Alignment.centerLeft,
     end: Alignment.centerRight,
-    colors: [Color(0xFF3B1785), Color(0xFF5B2DB5), Color(0xFF7A45DA)],
+    colors: [
+      AppColors.brandDark,
+      AppColors.brand,
+      Color(0xFF7A45DA),
+    ],
   );
 
   static const goldGradient = LinearGradient(
-    colors: [Color(0xFFFFB02E), Color(0xFFFF8A00)],
+    colors: [
+      Color(0xFFFFB02E),
+      Color(0xFFFF8A00),
+    ],
   );
 }
 
