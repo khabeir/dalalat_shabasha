@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../core/theme/app_colors.dart';
-import '../core/theme/app_decorations.dart';
 import 'listing_form_widgets.dart';
 
 class AddListingScreen extends StatefulWidget {
@@ -14,6 +12,11 @@ class AddListingScreen extends StatefulWidget {
 }
 
 class _AddListingScreenState extends State<AddListingScreen> {
+  static const Color _brandPurple = Color(0xFF5125A8);
+  static const Color _deepPurple = Color(0xFF351477);
+  static const Color _warmCream = Color(0xFFFFFBF5);
+  static const Color _accentOrange = Color(0xFFFFB21A);
+
   final _formKey = GlobalKey<FormState>();
 
   final _titleController = TextEditingController();
@@ -31,6 +34,10 @@ class _AddListingScreenState extends State<AddListingScreen> {
   int? _selectedCategoryId;
   String _priceType = 'negotiable';
   String _condition = 'used';
+
+  // مدة ظهور الإعلان المطلوبة من صاحب الإعلان.
+  // تبدأ فعلياً عند اعتماد الإعلان من الإدارة.
+  String _displayDuration = 'month';
 
   bool _loadingCategories = true;
   bool _saving = false;
@@ -57,41 +64,26 @@ class _AddListingScreenState extends State<AddListingScreen> {
   // أدوات مساعدة
   // =========================
 
-  void _showSnack(
-    String message, {
-    int seconds = 4,
-  }) {
+  void _showSnack(String message, {int seconds = 4}) {
     if (!mounted) return;
 
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          behavior: SnackBarBehavior.floating,
+          content: Text(message),
           duration: Duration(seconds: seconds),
-          backgroundColor: AppColors.ink,
-          elevation: 4,
-          margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          content: Text(
-            message,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              height: 1.35,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
         ),
       );
   }
 
+  // هل أدخل المستخدم شيئاً يستحق التنبيه قبل الخروج؟
   bool get _hasChanges {
     return _titleController.text.trim().isNotEmpty ||
         _descriptionController.text.trim().isNotEmpty ||
         _priceController.text.trim().isNotEmpty ||
+        _areaController.text.trim().isNotEmpty ||
+        _phoneController.text.trim().isNotEmpty ||
         _images.isNotEmpty ||
         _selectedCategoryId != null;
   }
@@ -140,14 +132,13 @@ class _AddListingScreenState extends State<AddListingScreen> {
 
       if (!mounted) return;
 
-      setState(() {
-        _loadingCategories = false;
-      });
+      setState(() => _loadingCategories = false);
 
       _showSnack('تعذر تحميل التصنيفات');
     }
   }
 
+  // تعبئة المنطقة ورقم التواصل من الملف الشخصي لتوفير الكتابة.
   Future<void> _loadDefaults() async {
     try {
       final user = _supabase.auth.currentUser;
@@ -174,6 +165,7 @@ class _AddListingScreenState extends State<AddListingScreen> {
 
       if (!mounted) return;
 
+      // لا نكتب فوق ما بدأ المستخدم بكتابته.
       if (_phoneController.text.trim().isEmpty && phone.isNotEmpty) {
         _phoneController.text = phone;
       }
@@ -200,16 +192,12 @@ class _AddListingScreenState extends State<AddListingScreen> {
     if (picked.isEmpty || !mounted) return;
 
     setState(() {
-      _images.addAll(
-        picked.map(ListingImageItem.local),
-      );
+      _images.addAll(picked.map(ListingImageItem.local));
     });
   }
 
   void _removeImage(int index) {
-    setState(() {
-      _images.removeAt(index);
-    });
+    setState(() => _images.removeAt(index));
   }
 
   void _makeCover(int index) {
@@ -221,6 +209,239 @@ class _AddListingScreenState extends State<AddListingScreen> {
     _showSnack(
       'تم تعيين الصورة كغلاف للإعلان',
       seconds: 2,
+    );
+  }
+
+  // =========================
+  // مدة الإعلان
+  // =========================
+
+  String _displayDurationTitle(String value) {
+    switch (value) {
+      case 'day':
+        return 'يوم واحد';
+      case 'week':
+        return 'أسبوع واحد';
+      case 'month':
+        return 'شهر واحد';
+      case 'unlimited':
+        return 'غير محدود';
+      default:
+        return 'شهر واحد';
+    }
+  }
+
+  String _displayDurationSubtitle(String value) {
+    switch (value) {
+      case 'day':
+        return 'ينتهي بعد 24 ساعة من الموافقة';
+      case 'week':
+        return 'ينتهي بعد 7 أيام من الموافقة';
+      case 'month':
+        return 'ينتهي بعد شهر تقويمي من الموافقة';
+      case 'unlimited':
+        return 'يبقى منشوراً حتى تقوم الإدارة بإخفائه';
+      default:
+        return '';
+    }
+  }
+
+  IconData _displayDurationIcon(String value) {
+    switch (value) {
+      case 'day':
+        return Icons.today_outlined;
+      case 'week':
+        return Icons.date_range_outlined;
+      case 'month':
+        return Icons.calendar_month_outlined;
+      case 'unlimited':
+        return Icons.all_inclusive_rounded;
+      default:
+        return Icons.calendar_month_outlined;
+    }
+  }
+
+  Widget _buildDisplayDurationOption({
+    required String value,
+  }) {
+    final selected = _displayDuration == value;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: _saving
+          ? null
+          : () {
+              setState(() {
+                _displayDuration = value;
+              });
+            },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.all(13),
+        decoration: BoxDecoration(
+          color: selected
+              ? _brandPurple.withValues(alpha: 0.08)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected
+                ? _brandPurple
+                : colorScheme.outline.withValues(alpha: 0.18),
+            width: selected ? 1.6 : 1,
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: _brandPurple.withValues(alpha: 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: selected
+                    ? _brandPurple
+                    : _brandPurple.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                _displayDurationIcon(value),
+                size: 21,
+                color: selected
+                    ? Colors.white
+                    : _brandPurple,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _displayDurationTitle(value),
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w800,
+                      color: selected
+                          ? _deepPurple
+                          : colorScheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _displayDurationSubtitle(value),
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: selected
+                      ? _brandPurple
+                      : colorScheme.outline.withValues(alpha: 0.45),
+                  width: 1.6,
+                ),
+                color: selected
+                    ? _brandPurple
+                    : Colors.transparent,
+              ),
+              child: selected
+                  ? const Icon(
+                      Icons.check,
+                      size: 14,
+                      color: Colors.white,
+                    )
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDisplayDurationSection() {
+    return ListingSectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const ListingSectionTitle(
+            icon: Icons.schedule_outlined,
+            title: 'مدة ظهور الإعلان',
+            subtitle: 'اختر المدة المطلوبة لعرض إعلانك',
+          ),
+
+          const SizedBox(height: 8),
+
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 11,
+              vertical: 9,
+            ),
+            decoration: BoxDecoration(
+              color: _accentOrange.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 19,
+                  color: Colors.orange.shade800,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'تبدأ مدة الإعلان عند موافقة الإدارة، وليس عند إرسال الإعلان للمراجعة.',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.45,
+                      color: Colors.orange.shade900,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildDisplayDurationOption(value: 'day'),
+
+          const SizedBox(height: 8),
+
+          _buildDisplayDurationOption(value: 'week'),
+
+          const SizedBox(height: 8),
+
+          _buildDisplayDurationOption(value: 'month'),
+
+          const SizedBox(height: 8),
+
+          _buildDisplayDurationOption(value: 'unlimited'),
+        ],
+      ),
     );
   }
 
@@ -284,8 +505,14 @@ class _AddListingScreenState extends State<AddListingScreen> {
             'price_type': _priceType,
             'condition': _condition,
             'area': _areaController.text.trim(),
-            'contact_phone': cleanPhone(_phoneController.text),
+            'contact_phone': cleanPhone(
+              _phoneController.text,
+            ),
             'status': 'pending',
+
+            // المدة المطلوبة من صاحب الإعلان.
+            // لا نضع started/expires هنا لأن الإعلان لم يعتمد بعد.
+            'display_duration': _displayDuration,
           })
           .select('id')
           .single();
@@ -293,11 +520,14 @@ class _AddListingScreenState extends State<AddListingScreen> {
       final id = response['id'];
 
       if (id is! int) {
-        throw Exception('تعذر الحصول على رقم الإعلان');
+        throw Exception(
+          'تعذر الحصول على رقم الإعلان',
+        );
       }
 
       listingId = id;
 
+      // رفع الصور واحدة بعد أخرى مع إظهار التقدم.
       var failed = 0;
 
       for (var i = 0; i < _images.length; i++) {
@@ -321,12 +551,16 @@ class _AddListingScreenState extends State<AddListingScreen> {
             sortOrder: i,
           );
         } catch (e) {
-          debugPrint('upload image $i failed: $e');
+          debugPrint(
+            'upload image $i failed: $e',
+          );
           failed++;
         }
       }
 
-      if (_images.isNotEmpty && failed == _images.length) {
+      // فشلت كل الصور: نلغي الإعلان حتى لا يتكرر عند إعادة المحاولة.
+      if (_images.isNotEmpty &&
+          failed == _images.length) {
         await _rollbackListing(id);
         listingId = null;
 
@@ -335,7 +569,6 @@ class _AddListingScreenState extends State<AddListingScreen> {
           'تحقق من اتصال الإنترنت وحاول مرة أخرى.',
           seconds: 6,
         );
-
         return;
       }
 
@@ -347,8 +580,7 @@ class _AddListingScreenState extends State<AddListingScreen> {
 
       if (failed > 0) {
         buffer.write(
-          '\nتعذر رفع $failed من الصور، '
-          'يمكنك إضافتها من "تعديل الإعلان".',
+          '\nتعذر رفع $failed من الصور، يمكنك إضافتها من "تعديل الإعلان".',
         );
       }
 
@@ -361,13 +593,13 @@ class _AddListingScreenState extends State<AddListingScreen> {
     } catch (e) {
       debugPrint('saveListing error: $e');
 
+      // إن أُنشئ الإعلان ثم حدث خطأ غير متوقع نلغيه لتجنب التكرار.
       if (listingId != null) {
         await _rollbackListing(listingId);
       }
 
       _showSnack(
-        'تعذر حفظ الإعلان. '
-        'تحقق من اتصال الإنترنت وحاول مرة أخرى.',
+        'تعذر حفظ الإعلان. تحقق من اتصال الإنترنت وحاول مرة أخرى.',
         seconds: 5,
       );
     } finally {
@@ -385,65 +617,36 @@ class _AddListingScreenState extends State<AddListingScreen> {
   // =========================
 
   Widget _buildReviewNotice() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 12,
+        horizontal: 12,
+        vertical: 10,
       ),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            AppColors.brandSoft,
-            AppColors.brandSoft.withValues(alpha: 0.55),
-          ],
-          begin: Alignment.topRight,
-          end: Alignment.bottomLeft,
-        ),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: AppColors.brand.withValues(alpha: 0.10),
-        ),
+        color: colorScheme.tertiaryContainer
+            .withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.verified_outlined,
-              size: 20,
-              color: AppColors.brand,
-            ),
+          Icon(
+            Icons.info_outline,
+            size: 20,
+            color: colorScheme.onTertiaryContainer,
           ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'مراجعة الإعلان',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.ink,
-                  ),
-                ),
-                SizedBox(height: 3),
-                Text(
-                  'سيُراجع الإعلان من الإدارة قبل ظهوره للمستخدمين.',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    height: 1.45,
-                    color: AppColors.ink,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
+          const SizedBox(width: 9),
+          Expanded(
+            child: Text(
+              'سيُراجع الإعلان من الإدارة قبل ظهوره للمستخدمين.',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.4,
+                color: colorScheme.onTertiaryContainer,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
         ],
@@ -461,7 +664,9 @@ class _AddListingScreenState extends State<AddListingScreen> {
             title: 'بيانات الإعلان',
             subtitle: 'أدخل المعلومات الأساسية',
           ),
+
           const SizedBox(height: 14),
+
           ListingCategoryField(
             categories: _categories,
             value: _selectedCategoryId,
@@ -471,7 +676,9 @@ class _AddListingScreenState extends State<AddListingScreen> {
               });
             },
           ),
+
           const SizedBox(height: 12),
+
           TextFormField(
             controller: _titleController,
             textInputAction: TextInputAction.next,
@@ -484,7 +691,9 @@ class _AddListingScreenState extends State<AddListingScreen> {
             ),
             validator: validateListingTitle,
           ),
+
           const SizedBox(height: 8),
+
           TextFormField(
             controller: _descriptionController,
             maxLines: 5,
@@ -512,7 +721,9 @@ class _AddListingScreenState extends State<AddListingScreen> {
             title: 'الموقع والتواصل',
             subtitle: 'كيف يمكن الوصول إليك؟',
           ),
+
           const SizedBox(height: 14),
+
           TextFormField(
             controller: _areaController,
             textInputAction: TextInputAction.next,
@@ -523,7 +734,9 @@ class _AddListingScreenState extends State<AddListingScreen> {
               icon: Icons.location_on_outlined,
             ),
           ),
+
           const SizedBox(height: 12),
+
           TextFormField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
@@ -543,79 +756,57 @@ class _AddListingScreenState extends State<AddListingScreen> {
   }
 
   Widget _buildPublishButton() {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          height: 54,
+          height: 56,
           child: FilledButton.icon(
-            onPressed: _saving ? null : _saveListing,
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.brand,
+              backgroundColor: _brandPurple,
               foregroundColor: Colors.white,
-              disabledBackgroundColor:
-                  AppColors.brand.withValues(alpha: 0.45),
-              disabledForegroundColor: Colors.white70,
-              elevation: 3,
-              shadowColor: AppColors.brand.withValues(alpha: 0.25),
+              elevation: 4,
+              shadowColor:
+                  _brandPurple.withValues(alpha: .28),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(15),
+                borderRadius: BorderRadius.circular(18),
               ),
             ),
+            onPressed: _saving ? null : _saveListing,
             icon: _saving
                 ? const SizedBox(
-                    width: 21,
-                    height: 21,
+                    width: 20,
+                    height: 20,
                     child: CircularProgressIndicator(
-                      strokeWidth: 2.2,
-                      color: Colors.white,
+                      strokeWidth: 2,
                     ),
                   )
                 : const Icon(
                     Icons.publish_outlined,
-                    size: 22,
+                    size: 21,
                   ),
             label: Text(
-              _saving ? 'جاري الحفظ...' : 'نشر الإعلان',
+              _saving
+                  ? 'جاري الحفظ...'
+                  : 'نشر الإعلان',
               style: const TextStyle(
                 fontSize: 15,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ),
+
         if (_saving && _progress != null) ...[
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 9,
-            ),
-            decoration: AppDecorations.softCard(),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(
-                  width: 15,
-                  height: 15,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColors.brand,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    _progress!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppColors.ink,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
+          Text(
+            _progress!,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: colorScheme.onSurfaceVariant,
             ),
           ),
         ],
@@ -635,27 +826,43 @@ class _AddListingScreenState extends State<AddListingScreen> {
           }
         },
         child: Scaffold(
-          backgroundColor: AppColors.pageBackground,
+          backgroundColor: _warmCream,
           appBar: AppBar(
-            backgroundColor: AppColors.pageBackground,
-            foregroundColor: AppColors.ink,
             elevation: 0,
-            surfaceTintColor: Colors.transparent,
             centerTitle: true,
+            foregroundColor: Colors.white,
+            flexibleSpace: const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: [
+                    _deepPurple,
+                    _brandPurple,
+                    Color(0xFF7045C1),
+                  ],
+                ),
+              ),
+            ),
+            leading: IconButton(
+              tooltip: 'رجوع',
+              icon: const Icon(
+                Icons.arrow_back_rounded,
+              ),
+              onPressed: _onBackPressed,
+            ),
             title: const Text(
               'إضافة إعلان',
               style: TextStyle(
-                fontSize: 19,
-                fontWeight: FontWeight.w900,
-                color: AppColors.ink,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: .2,
               ),
             ),
           ),
           body: _loadingCategories
               ? const Center(
-                  child: CircularProgressIndicator(
-                    color: AppColors.brand,
-                  ),
+                  child: CircularProgressIndicator(),
                 )
               : Form(
                   key: _formKey,
@@ -663,18 +870,24 @@ class _AddListingScreenState extends State<AddListingScreen> {
                       AutovalidateMode.onUserInteraction,
                   child: ListView(
                     keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.fromLTRB(
-                      14,
-                      8,
-                      14,
-                      28,
+                        ScrollViewKeyboardDismissBehavior
+                            .onDrag,
+                    padding:
+                        const EdgeInsets.fromLTRB(
+                      16,
+                      16,
+                      16,
+                      30,
                     ),
                     children: [
                       _buildReviewNotice(),
+
                       const SizedBox(height: 14),
+
                       _buildDetailsSection(),
+
                       const SizedBox(height: 12),
+
                       ListingSectionCard(
                         child: ListingImagesSection(
                           items: _images,
@@ -684,7 +897,9 @@ class _AddListingScreenState extends State<AddListingScreen> {
                           onMakeCover: _makeCover,
                         ),
                       ),
+
                       const SizedBox(height: 12),
+
                       ListingSectionCard(
                         child: ListingPriceSection(
                           priceType: _priceType,
@@ -696,7 +911,9 @@ class _AddListingScreenState extends State<AddListingScreen> {
                           },
                         ),
                       ),
+
                       const SizedBox(height: 12),
+
                       ListingSectionCard(
                         child: ListingConditionSection(
                           condition: _condition,
@@ -707,9 +924,18 @@ class _AddListingScreenState extends State<AddListingScreen> {
                           },
                         ),
                       ),
+
                       const SizedBox(height: 12),
+
+                      // مدة ظهور الإعلان.
+                      _buildDisplayDurationSection(),
+
+                      const SizedBox(height: 12),
+
                       _buildContactSection(),
+
                       const SizedBox(height: 18),
+
                       _buildPublishButton(),
                     ],
                   ),
