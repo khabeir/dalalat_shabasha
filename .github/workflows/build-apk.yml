@@ -21,10 +21,16 @@ jobs:
           channel: stable
           cache: true
 
+      # إنشاء مشروع Android لأن المستودع لا يحتوي على مجلد android
       - name: Create Flutter Android project
         run: |
-          flutter create --platforms=android --org com.khabeir --project-name dalalatshabasha .
+          flutter create \
+            --platforms=android \
+            --org com.khabeir \
+            --project-name dalalatshabasha \
+            .
 
+      # إضافة صلاحية الإنترنت
       - name: Add Android Internet permission
         run: |
           python - <<'PY2'
@@ -37,14 +43,16 @@ jobs:
 
           if 'android.permission.INTERNET' not in s:
               marker = '<application'
-              s = s.replace(marker, permission + '\\n\\n    ' + marker, 1)
+              s = s.replace(
+                  marker,
+                  permission + '\n\n    ' + marker,
+                  1
+              )
 
           p.write_text(s)
           PY2
 
-      - name: Remove default test
-        run: rm -f test/widget_test.dart
-
+      # اسم التطبيق الظاهر للمستخدم
       - name: Set Arabic app name
         run: |
           python - <<'PY2'
@@ -54,7 +62,6 @@ jobs:
           p = Path("android/app/src/main/AndroidManifest.xml")
           s = p.read_text()
 
-          # إجبار اسم التطبيق الظاهر للمستخدم على الاسم العربي
           s = re.sub(
               r'android:label="[^"]*"',
               'android:label="دلالة شبشة"',
@@ -65,15 +72,49 @@ jobs:
           p.write_text(s)
           PY2
 
+      # التأكد من وجود صورة الأيقونة
+      - name: Verify launcher icon source
+        run: |
+          test -f assets/icon/dalalat_shabasha_icon.png
+
+          echo "Launcher icon source:"
+          file assets/icon/dalalat_shabasha_icon.png
+
+      # إزالة اختبار Flutter الافتراضي
+      - name: Remove default test
+        run: |
+          rm -f test/widget_test.dart
+
+      # تثبيت الحزم
       - name: Get dependencies
         run: flutter pub get
 
-      - name: Generate Android launcher icon
-        run: dart run flutter_launcher_icons
+      # توليد جميع أيقونات Android من صورة PNG الجديدة
+      - name: Generate Android launcher icons
+        run: |
+          dart run flutter_launcher_icons
 
+      # فحص وجود الأيقونات المولدة
+      - name: Verify generated Android icons
+        run: |
+          echo "===== GENERATED ICON FILES ====="
+
+          find android/app/src/main/res \
+            -type f \
+            \( -name "*launcher*" -o -name "*ic_launcher*" \) \
+            -print | sort
+
+          echo
+          echo "===== MANIFEST ICON ====="
+
+          grep -n "android:icon\|android:roundIcon" \
+            android/app/src/main/AndroidManifest.xml || true
+
+      # تحليل المشروع
       - name: Analyze
         run: flutter analyze
 
+      # بناء APK
       - name: Build APK
         env:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -82,8 +123,9 @@ jobs:
             --dart-define=SUPABASE_URL=https://newtahnyvxbydpsbxgew.supabase.co \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
+      # رفع APK كـ Artifact
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: dalalat-shabsha-apk
+          name: dalalat-shabasha-apk
           path: build/app/outputs/flutter-apk/app-release.apk
