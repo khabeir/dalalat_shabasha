@@ -27,78 +27,47 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     _loadNotifications();
   }
 
-  // =========================================================
-  // تحميل الإشعارات
-  // =========================================================
-
   Future<void> _loadNotifications() async {
     if (!_notificationService.isSignedIn) {
       if (!mounted) return;
-
       setState(() {
         _notifications = [];
         _isLoading = false;
       });
-
       return;
     }
 
     try {
-      final notifications =
-          await _notificationService.getNotifications();
-
+      final notifications = await _notificationService.getNotifications();
       if (!mounted) return;
-
       setState(() {
         _notifications = notifications;
         _isLoading = false;
       });
     } catch (_) {
       if (!mounted) return;
-
-      setState(() {
-        _isLoading = false;
-      });
-
+      setState(() => _isLoading = false);
       _showError('تعذر تحميل الإشعارات');
     }
   }
 
-  // =========================================================
-  // تحديث الإشعارات
-  // =========================================================
-
   Future<void> _refreshNotifications() async {
     if (_isRefreshing) return;
-
-    setState(() {
-      _isRefreshing = true;
-    });
+    setState(() => _isRefreshing = true);
 
     try {
-      final notifications =
-          await _notificationService.getNotifications();
-
+      final notifications = await _notificationService.getNotifications();
       if (!mounted) return;
-
       setState(() {
         _notifications = notifications;
         _isRefreshing = false;
       });
     } catch (_) {
       if (!mounted) return;
-
-      setState(() {
-        _isRefreshing = false;
-      });
-
+      setState(() => _isRefreshing = false);
       _showError('تعذر تحديث الإشعارات');
     }
   }
-
-  // =========================================================
-  // فتح إعدادات الإشعارات
-  // =========================================================
 
   Future<void> _openNotificationSettings() async {
     await Navigator.push(
@@ -107,54 +76,32 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         builder: (_) => const NotificationSettingsScreen(),
       ),
     );
-
     if (!mounted) return;
-
     await _loadNotifications();
   }
 
-  // =========================================================
-  // تعليم إشعار كمقروء
-  // =========================================================
-
-  Future<void> _markAsRead(
-    Map<String, dynamic> notification,
-  ) async {
+  Future<void> _markAsRead(Map<String, dynamic> notification) async {
     final id = (notification['id'] as num?)?.toInt();
-
-    if (id == null) return;
-
-    if (notification['is_read'] == true) return;
+    if (id == null || notification['is_read'] == true) return;
 
     try {
       await _notificationService.markAsRead(id);
-
       if (!mounted) return;
-
-      setState(() {
-        notification['is_read'] = true;
-      });
+      setState(() => notification['is_read'] = true);
     } catch (_) {
       _showError('تعذر تحديث حالة الإشعار');
     }
   }
 
-  // =========================================================
-  // تعليم جميع الإشعارات كمقروءة
-  // =========================================================
-
   Future<void> _markAllAsRead() async {
     final hasUnread = _notifications.any(
       (notification) => notification['is_read'] != true,
     );
-
     if (!hasUnread) return;
 
     try {
       await _notificationService.markAllAsRead();
-
       if (!mounted) return;
-
       setState(() {
         for (final notification in _notifications) {
           notification['is_read'] = true;
@@ -165,33 +112,18 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
-  // =========================================================
-  // حذف إشعار
-  // =========================================================
-
-  Future<void> _deleteNotification(
-    Map<String, dynamic> notification,
-  ) async {
+  Future<void> _deleteNotification(Map<String, dynamic> notification) async {
     final id = (notification['id'] as num?)?.toInt();
-
     if (id == null) return;
 
     try {
       await _notificationService.deleteNotification(id);
-
       if (!mounted) return;
-
-      setState(() {
-        _notifications.remove(notification);
-      });
+      setState(() => _notifications.remove(notification));
     } catch (_) {
       _showError('تعذر حذف الإشعار');
     }
   }
-
-  // =========================================================
-  // حذف جميع الإشعارات
-  // =========================================================
 
   Future<void> _deleteAllNotifications() async {
     if (_notifications.isEmpty) return;
@@ -202,26 +134,28 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         return Directionality(
           textDirection: TextDirection.rtl,
           child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(22),
+            ),
             title: const Text(
               'حذف جميع الإشعارات',
               style: TextStyle(
+                color: AppColors.ink,
                 fontWeight: FontWeight.w900,
               ),
             ),
-            content: const Text(
-              'هل تريد حذف جميع الإشعارات؟',
-            ),
+            content: const Text('هل تريد حذف جميع الإشعارات؟'),
             actions: [
               TextButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext, false);
-                },
+                onPressed: () => Navigator.pop(dialogContext, false),
                 child: const Text('إلغاء'),
               ),
               FilledButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext, true);
-                },
+                style: FilledButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                onPressed: () => Navigator.pop(dialogContext, true),
                 child: const Text('حذف'),
               ),
             ],
@@ -234,161 +168,112 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     try {
       await _notificationService.deleteAllNotifications();
-
       if (!mounted) return;
-
-      setState(() {
-        _notifications.clear();
-      });
+      setState(() => _notifications.clear());
     } catch (_) {
       _showError('تعذر حذف الإشعارات');
     }
   }
 
-  // =========================================================
-  // فتح الإشعار
-  // =========================================================
-
-  Future<void> _openNotification(
-    Map<String, dynamic> notification,
-  ) async {
-    // أولاً نعلّم الإشعار كمقروء.
+  Future<void> _openNotification(Map<String, dynamic> notification) async {
     await _markAsRead(notification);
-
     if (!mounted) return;
 
-    final listingId =
-        (notification['listing_id'] as num?)?.toInt();
-
-    // إذا لم يكن الإشعار مرتبطًا بإعلان،
-    // لا نحاول فتح صفحة تفاصيل.
-    if (listingId == null) {
-      return;
-    }
+    final listingId = (notification['listing_id'] as num?)?.toInt();
+    if (listingId == null) return;
 
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ListingDetailsScreen(
-          listingId: listingId,
-        ),
+        builder: (_) => ListingDetailsScreen(listingId: listingId),
       ),
     );
 
-    // بعد الرجوع من تفاصيل الإعلان،
-    // نعيد تحميل الإشعارات لتحديث الحالة والعداد.
     if (!mounted) return;
-
     await _loadNotifications();
   }
-
-  // =========================================================
-  // نوع الإشعار
-  // =========================================================
 
   IconData _notificationIcon(String? type) {
     switch (type) {
       case 'new_listing':
-        return Icons.new_releases_rounded;
-
+        return Icons.campaign_rounded;
       case 'featured_listing':
-        return Icons.star_rounded;
-
+        return Icons.auto_awesome_rounded;
       case 'admin':
+        return Icons.admin_panel_settings_rounded;
       case 'announcement':
         return Icons.campaign_rounded;
-
       default:
-        return Icons.notifications_rounded;
+        return Icons.notifications_active_rounded;
     }
   }
-
-  // =========================================================
-  // لون أيقونة الإشعار
-  // =========================================================
 
   Color _notificationIconColor(String? type) {
     switch (type) {
       case 'new_listing':
-        return Colors.blue;
-
+        return AppColors.brand;
       case 'featured_listing':
         return AppColors.orange;
-
       case 'admin':
+        return AppColors.brandDark;
       case 'announcement':
-        return AppColors.brand;
-
+        return AppColors.gold;
       default:
         return AppColors.brand;
     }
   }
 
-  // =========================================================
-  // تنسيق التاريخ
-  // =========================================================
+  String _notificationLabel(String? type) {
+    switch (type) {
+      case 'new_listing':
+        return 'إعلان جديد';
+      case 'featured_listing':
+        return 'إعلان مميز';
+      case 'admin':
+        return 'من الإدارة';
+      case 'announcement':
+        return 'إعلان عام';
+      default:
+        return 'تنبيه';
+    }
+  }
 
   String _formatDate(dynamic value) {
-    if (value == null) {
-      return '';
-    }
+    if (value == null) return '';
 
     try {
-      final date = DateTime.parse(
-        value.toString(),
-      ).toLocal();
-
+      final date = DateTime.parse(value.toString()).toLocal();
       final now = DateTime.now();
       final difference = now.difference(date);
 
-      if (difference.isNegative) {
-        return 'الآن';
-      }
-
-      if (difference.inMinutes < 1) {
-        return 'الآن';
-      }
-
+      if (difference.isNegative || difference.inMinutes < 1) return 'الآن';
       if (difference.inMinutes < 60) {
         return 'منذ ${difference.inMinutes} دقيقة';
       }
-
       if (difference.inHours < 24) {
         return 'منذ ${difference.inHours} ساعة';
       }
-
-      if (difference.inDays == 1) {
-        return 'أمس';
-      }
-
-      if (difference.inDays < 7) {
-        return 'منذ ${difference.inDays} أيام';
-      }
-
+      if (difference.inDays == 1) return 'أمس';
+      if (difference.inDays < 7) return 'منذ ${difference.inDays} أيام';
       return '${date.day}/${date.month}/${date.year}';
     } catch (_) {
       return '';
     }
   }
 
-  // =========================================================
-  // رسالة الخطأ
-  // =========================================================
-
   void _showError(String message) {
     if (!mounted) return;
-
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.ink,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
       ),
     );
   }
-
-  // =========================================================
-  // البناء الرئيسي
-  // =========================================================
 
   @override
   Widget build(BuildContext context) {
@@ -402,62 +287,92 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         backgroundColor: AppColors.pageBackground,
         appBar: AppBar(
           elevation: 0,
+          scrolledUnderElevation: 0,
           backgroundColor: AppColors.pageBackground,
           foregroundColor: AppColors.ink,
           centerTitle: true,
-          title: const Text(
-            'الإشعارات',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          title: const Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'الإشعارات',
+                style: TextStyle(
+                  color: AppColors.ink,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              SizedBox(height: 1),
+              Text(
+                'ابقَ على اطلاع بكل جديد',
+                style: TextStyle(
+                  color: Colors.black45,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
           actions: [
-            // إعدادات الإشعارات
+            if (unreadCount > 0)
+              Padding(
+                padding: const EdgeInsetsDirectional.only(end: 2),
+                child: Center(
+                  child: Container(
+                    constraints: const BoxConstraints(minWidth: 27),
+                    height: 27,
+                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.orange, AppColors.gold],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Center(
+                      child: Text(
+                        unreadCount > 99 ? '99+' : '$unreadCount',
+                        style: const TextStyle(
+                          color: AppColors.ink,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             IconButton(
               tooltip: 'إعدادات الإشعارات',
               onPressed: _openNotificationSettings,
-              icon: const Icon(
-                Icons.settings_rounded,
-              ),
+              icon: const Icon(Icons.tune_rounded),
             ),
-
-            // تحديد الكل كمقروء
             if (unreadCount > 0)
               IconButton(
                 tooltip: 'تحديد الكل كمقروء',
                 onPressed: _markAllAsRead,
-                icon: const Icon(
-                  Icons.done_all_rounded,
-                ),
+                icon: const Icon(Icons.done_all_rounded),
               ),
-
-            // قائمة حذف الكل
             if (_notifications.isNotEmpty)
               PopupMenuButton<String>(
                 tooltip: 'المزيد',
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
                 onSelected: (value) {
-                  if (value == 'delete_all') {
-                    _deleteAllNotifications();
-                  }
+                  if (value == 'delete_all') _deleteAllNotifications();
                 },
-                itemBuilder: (context) {
-                  return const [
-                    PopupMenuItem<String>(
-                      value: 'delete_all',
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.delete_sweep_rounded,
-                            color: Colors.red,
-                          ),
-                          SizedBox(width: 10),
-                          Text('حذف الكل'),
-                        ],
-                      ),
+                itemBuilder: (context) => const [
+                  PopupMenuItem<String>(
+                    value: 'delete_all',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete_sweep_rounded, color: Colors.red),
+                        SizedBox(width: 10),
+                        Text('حذف الكل'),
+                      ],
                     ),
-                  ];
-                },
+                  ),
+                ],
               ),
           ],
         ),
@@ -466,14 +381,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  // =========================================================
-  // محتوى الصفحة
-  // =========================================================
-
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(),
+        child: CircularProgressIndicator(color: AppColors.brand),
       );
     }
 
@@ -483,13 +394,12 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
     if (_notifications.isEmpty) {
       return RefreshIndicator(
+        color: AppColors.brand,
         onRefresh: _refreshNotifications,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            SizedBox(
-              height: MediaQuery.of(context).size.height * 0.20,
-            ),
+            SizedBox(height: MediaQuery.of(context).size.height * 0.12),
             _buildEmptyState(),
           ],
         ),
@@ -497,189 +407,186 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
 
     return RefreshIndicator(
+      color: AppColors.brand,
       onRefresh: _refreshNotifications,
       child: ListView.separated(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(
-          16,
-          12,
-          16,
-          30,
-        ),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 30),
         itemCount: _notifications.length,
-        separatorBuilder: (_, __) {
-          return const SizedBox(height: 10);
-        },
+        separatorBuilder: (_, __) => const SizedBox(height: 11),
         itemBuilder: (context, index) {
-          return _buildNotificationCard(
-            _notifications[index],
-          );
+          return _buildNotificationCard(_notifications[index]);
         },
       ),
     );
   }
 
-  // =========================================================
-  // بطاقة الإشعار
-  // =========================================================
-
-  Widget _buildNotificationCard(
-    Map<String, dynamic> notification,
-  ) {
+  Widget _buildNotificationCard(Map<String, dynamic> notification) {
     final isRead = notification['is_read'] == true;
-
     final type = notification['type']?.toString();
-
-    final title =
-        notification['title']?.toString() ?? 'إشعار';
-
-    final body =
-        notification['body']?.toString() ?? '';
-
-    final date =
-        _formatDate(notification['created_at']);
-
-    final iconColor =
-        _notificationIconColor(type);
-
-    final listingId =
-        (notification['listing_id'] as num?)?.toInt();
-
+    final title = notification['title']?.toString() ?? 'إشعار';
+    final body = notification['body']?.toString() ?? '';
+    final date = _formatDate(notification['created_at']);
+    final iconColor = _notificationIconColor(type);
+    final listingId = (notification['listing_id'] as num?)?.toInt();
     final hasListing = listingId != null;
 
     return Dismissible(
-      key: ValueKey(
-        notification['id'],
-      ),
+      key: ValueKey(notification['id']),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 22),
         decoration: BoxDecoration(
-          color: Colors.red,
-          borderRadius: BorderRadius.circular(18),
+          gradient: const LinearGradient(
+            colors: [Color(0xFFB71C1C), Colors.red],
+          ),
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: const Icon(
-          Icons.delete_rounded,
-          color: Colors.white,
-        ),
+        child: const Icon(Icons.delete_rounded, color: Colors.white),
       ),
       confirmDismiss: (_) async {
         await _deleteNotification(notification);
         return false;
       },
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(20),
         onTap: hasListing
             ? () => _openNotification(notification)
             : () => _markAsRead(notification),
         child: AnimatedContainer(
-          duration: const Duration(
-            milliseconds: 200,
-          ),
-          padding: const EdgeInsets.all(15),
-          decoration: AppDecorations.card(
-            color: isRead
-                ? Colors.white
-                : AppColors.brandSoft,
+          duration: const Duration(milliseconds: 220),
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 13),
+          decoration: BoxDecoration(
+            color: isRead ? Colors.white : const Color(0xFFF1ECFF),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: isRead
+                  ? Colors.transparent
+                  : AppColors.brand.withValues(alpha: 0.12),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.brand.withValues(
+                  alpha: isRead ? 0.055 : 0.10,
+                ),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
           child: Row(
-            crossAxisAlignment:
-                CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildNotificationIcon(
-                iconColor,
-                type,
-                isRead,
-              ),
+              _buildNotificationIcon(iconColor, type, isRead),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(
                           child: Text(
                             title,
                             maxLines: 2,
-                            overflow:
-                                TextOverflow.ellipsis,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: AppColors.ink,
                               fontSize: 14,
+                              height: 1.3,
                               fontWeight: isRead
                                   ? FontWeight.w700
                                   : FontWeight.w900,
                             ),
                           ),
                         ),
-                        if (!isRead)
+                        if (!isRead) ...[
+                          const SizedBox(width: 8),
                           Container(
                             width: 9,
                             height: 9,
-                            margin:
-                                const EdgeInsets.only(
-                              right: 8,
-                            ),
-                            decoration:
-                                const BoxDecoration(
+                            margin: const EdgeInsets.only(top: 4),
+                            decoration: const BoxDecoration(
                               color: AppColors.orange,
                               shape: BoxShape.circle,
                             ),
                           ),
+                        ],
                       ],
                     ),
+                    const SizedBox(height: 5),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: iconColor.withValues(alpha: 0.09),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _notificationLabel(type),
+                        style: TextStyle(
+                          color: iconColor,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
                     if (body.isNotEmpty) ...[
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 7),
                       Text(
                         body,
                         maxLines: 3,
-                        overflow:
-                            TextOverflow.ellipsis,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Colors.black54,
                           fontSize: 12,
-                          height: 1.45,
+                          height: 1.5,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
-                    if (date.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        date,
-                        style: const TextStyle(
-                          color: Colors.black45,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                    if (hasListing) ...[
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
+                    const SizedBox(height: 9),
+                    Row(
+                      children: [
+                        if (date.isNotEmpty) ...[
+                          const Icon(
+                            Icons.schedule_rounded,
+                            size: 13,
+                            color: Colors.black38,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            date,
+                            style: const TextStyle(
+                              color: Colors.black45,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                        if (hasListing) ...[
+                          const Spacer(),
                           Icon(
-                            Icons.open_in_new_rounded,
-                            size: 14,
+                            Icons.arrow_back_ios_new_rounded,
+                            size: 12,
                             color: iconColor,
                           ),
-                          const SizedBox(width: 5),
+                          const SizedBox(width: 4),
                           Text(
                             'عرض الإعلان',
                             style: TextStyle(
                               color: iconColor,
                               fontSize: 10.5,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                         ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -690,99 +597,178 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     );
   }
 
-  // =========================================================
-  // أيقونة الإشعار
-  // =========================================================
-
   Widget _buildNotificationIcon(
     Color color,
     String? type,
     bool isRead,
   ) {
     return Container(
-      width: 46,
-      height: 46,
+      width: 52,
+      height: 52,
       decoration: BoxDecoration(
-        color: color.withValues(
-          alpha: isRead ? 0.08 : 0.14,
+        gradient: LinearGradient(
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+          colors: [
+            color.withValues(alpha: isRead ? 0.12 : 0.20),
+            AppColors.brandSoft,
+          ],
         ),
         shape: BoxShape.circle,
-      ),
-      child: Icon(
-        _notificationIcon(type),
-        color: color.withValues(
-          alpha: isRead ? 0.65 : 1,
+        border: Border.all(
+          color: color.withValues(alpha: isRead ? 0.10 : 0.18),
         ),
-        size: 23,
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Icon(
+            _notificationIcon(type),
+            color: color.withValues(alpha: isRead ? 0.70 : 1),
+            size: 25,
+          ),
+          if (!isRead)
+            Positioned(
+              top: 4,
+              right: 5,
+              child: Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.orange,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  // =========================================================
-  // حالة عدم وجود إشعارات
-  // =========================================================
-
   Widget _buildEmptyState() {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 30,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Column(
         children: [
+          // أيقونة ملونة بدل الأيقونة الرمادية القديمة.
           Container(
-            width: 88,
-            height: 88,
-            decoration: const BoxDecoration(
-              color: AppColors.brandSoft,
+            width: 108,
+            height: 108,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: [AppColors.brand, AppColors.brandDark],
+              ),
               shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.brand.withValues(alpha: 0.22),
+                  blurRadius: 24,
+                  offset: const Offset(0, 10),
+                ),
+              ],
             ),
-            child: const Icon(
-              Icons.notifications_none_rounded,
-              color: AppColors.brand,
-              size: 44,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Container(
+                  width: 78,
+                  height: 78,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const Icon(
+                  Icons.notifications_active_rounded,
+                  color: AppColors.gold,
+                  size: 50,
+                ),
+                Positioned(
+                  top: 20,
+                  right: 22,
+                  child: Container(
+                    width: 11,
+                    height: 11,
+                    decoration: const BoxDecoration(
+                      color: AppColors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 22),
           const Text(
-            'لا توجد إشعارات حالياً',
+            'كل جديد سيصل إليك هنا',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: AppColors.ink,
-              fontSize: 17,
+              fontSize: 19,
               fontWeight: FontWeight.w900,
             ),
           ),
           const SizedBox(height: 8),
           const Text(
-            'عند وجود إعلانات أو عروض جديدة ستظهر '
-            'الإشعارات هنا.',
+            'لا توجد إشعارات حالياً. عند وصول إعلان جديد أو تنبيه مهم،\nستجده هنا بسهولة.',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.black54,
               fontSize: 12.5,
-              height: 1.5,
+              height: 1.6,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(height: 20),
-
-          // زر إعدادات الإشعارات
-          OutlinedButton.icon(
-            onPressed: _openNotificationSettings,
-            icon: const Icon(
-              Icons.tune_rounded,
+          const SizedBox(height: 22),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
+            decoration: AppDecorations.softCard(),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.tips_and_updates_rounded,
+                  color: AppColors.orange,
+                  size: 19,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  'يمكنك التحكم في التنبيهات من الإعدادات',
+                  style: TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(height: 18),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.brand,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 12,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+            onPressed: _openNotificationSettings,
+            icon: const Icon(Icons.tune_rounded, size: 18),
             label: const Text(
               'إعدادات الإشعارات',
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
         ],
       ),
     );
   }
-
-  // =========================================================
-  // المستخدم غير مسجل الدخول
-  // =========================================================
 
   Widget _buildLoginMessage() {
     return Center(
@@ -792,34 +778,46 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 88,
-              height: 88,
-              decoration: const BoxDecoration(
-                color: AppColors.brandSoft,
+              width: 108,
+              height: 108,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topRight,
+                  end: Alignment.bottomLeft,
+                  colors: [AppColors.brand, AppColors.brandDark],
+                ),
                 shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.brand.withValues(alpha: 0.20),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
               child: const Icon(
-                Icons.lock_outline_rounded,
-                color: AppColors.brand,
-                size: 42,
+                Icons.notifications_active_rounded,
+                color: AppColors.gold,
+                size: 48,
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 22),
             const Text(
               'سجّل الدخول أولاً',
               style: TextStyle(
                 color: AppColors.ink,
-                fontSize: 17,
+                fontSize: 19,
                 fontWeight: FontWeight.w900,
               ),
             ),
             const SizedBox(height: 8),
             const Text(
-              'يجب تسجيل الدخول لعرض إشعاراتك.',
+              'سجّل الدخول لتستقبل إشعاراتك وتتابع\nكل جديد في دلالة شبشة.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.black54,
                 fontSize: 12.5,
+                height: 1.6,
               ),
             ),
           ],
