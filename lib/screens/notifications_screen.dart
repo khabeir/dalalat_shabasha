@@ -243,11 +243,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
 
       return false;
     } finally {
-      if (!mounted) return;
-
+      if (!mounted) {
       setState(() {
         _deletingIds.remove(id);
       });
+      }
     }
   }
 
@@ -436,11 +436,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         );
       }
     } finally {
-      if (!mounted) return;
-
+      if (!mounted) {
       setState(() {
         _isDeletingAll = false;
       });
+      }
     }
   }
 
