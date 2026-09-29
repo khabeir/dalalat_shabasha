@@ -27,7 +27,7 @@ jobs:
           flutter create \
             --platforms=android \
             --org com.khabeir \
-            --project-name dalalatshabasha \
+            --project-name delalatshabasha \
             .
 
       # إضافة صلاحية الإنترنت
@@ -75,10 +75,10 @@ jobs:
       # التأكد من وجود صورة الأيقونة
       - name: Verify launcher icon source
         run: |
-          test -f assets/icon/dalalat_shabasha_icon.png
+          test -f assets/icon/delalat_shabasha_icon.png
 
           echo "Launcher icon source:"
-          file assets/icon/dalalat_shabasha_icon.png
+          file assets/icon/delalat_shabasha_icon.png
 
       # إزالة اختبار Flutter الافتراضي
       - name: Remove default test
@@ -127,5 +127,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: dalalat-shabasha-apk
+          name: delalat-shabasha-apk
           path: build/app/outputs/flutter-apk/app-release.apk
