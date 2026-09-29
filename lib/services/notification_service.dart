@@ -101,39 +101,53 @@ class NotificationService {
   }
 
   // =========================================================
-  // حذف إشعار واحد
-  // =========================================================
+// حذف إشعار واحد
+// =========================================================
 
-  Future<void> deleteNotification(int notificationId) async {
-    final userId = currentUserId;
+Future<void> deleteNotification(int notificationId) async {
+  final userId = currentUserId;
 
-    if (userId == null) {
-      return;
-    }
-
-    await _supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId)
-        .eq('user_id', userId);
+  if (userId == null) {
+    throw Exception('يجب تسجيل الدخول أولاً');
   }
 
-  // =========================================================
-  // حذف جميع الإشعارات
-  // =========================================================
+  final deleted = await _supabase
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId)
+      .eq('user_id', userId)
+      .select('id');
 
-  Future<void> deleteAllNotifications() async {
-    final userId = currentUserId;
-
-    if (userId == null) {
-      return;
-    }
-
-    await _supabase
-        .from('notifications')
-        .delete()
-        .eq('user_id', userId);
+  if (deleted.isEmpty) {
+    throw Exception(
+      'لم يتم حذف الإشعار. تحقق من صلاحيات RLS.',
+    );
   }
+}
+
+// =========================================================
+// حذف جميع الإشعارات
+// =========================================================
+
+Future<void> deleteAllNotifications() async {
+  final userId = currentUserId;
+
+  if (userId == null) {
+    throw Exception('يجب تسجيل الدخول أولاً');
+  }
+
+  final deleted = await _supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', userId)
+      .select('id');
+
+  if (deleted.isEmpty) {
+    throw Exception(
+      'لم يتم حذف الإشعارات. تحقق من صلاحيات RLS.',
+    );
+  }
+}
 
   // =========================================================
   // جلب إعدادات الإشعارات
