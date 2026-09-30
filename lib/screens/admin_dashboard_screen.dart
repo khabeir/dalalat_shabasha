@@ -1240,17 +1240,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   ) {
     final rejected = listing['status'] == 'rejected';
     final expired = _isExpiredListing(listing);
-
-    final statusLabel = rejected
-        ? 'مرفوض'
-        : expired
-            ? 'منتهي'
-            : 'أرشيف';
-
-    final statusColor = rejected
-        ? Colors.red.shade700
-        : AppColors.orange;
-
     final reason = listing['rejection_reason']?.toString().trim() ?? '';
 
     final expiry = listing['display_expires_at'];
@@ -1261,7 +1250,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       footer = Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: Colors.red.withOpacity(0.06),
+          color: Colors.red.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
