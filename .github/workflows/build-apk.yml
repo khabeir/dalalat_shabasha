@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Signed Android
 
 on:
   push:
@@ -11,9 +11,15 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ============================================================
+      # Checkout
+      # ============================================================
       - name: Checkout
         uses: actions/checkout@v4
 
+      # ============================================================
+      # Setup Flutter
+      # ============================================================
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -21,7 +27,9 @@ jobs:
           channel: stable
           cache: true
 
-      # إنشاء مشروع Android لأن المستودع لا يحتوي على مجلد android
+      # ============================================================
+      # إنشاء مشروع Android
+      # ============================================================
       - name: Create Flutter Android project
         run: |
           flutter create \
@@ -30,11 +38,36 @@ jobs:
             --project-name delalatshabasha \
             .
 
-      # إضافة صلاحية الإنترنت
-      - name: Add Android Internet permission
+      # ============================================================
+      # تثبيت Application ID
+      # ============================================================
+      - name: Set Application ID
         run: |
-          python - <<'PY2'
+          python - <<'PY'
           from pathlib import Path
+          import re
+
+          p = Path("android/app/build.gradle.kts")
+          s = p.read_text()
+
+          s = re.sub(
+              r'applicationId\s*=\s*"[^"]*"',
+              'applicationId = "com.khabeir.delalatshabasha"',
+              s,
+              count=1
+          )
+
+          p.write_text(s)
+          PY
+
+      # ============================================================
+      # صلاحية الإنترنت + اسم التطبيق
+      # ============================================================
+      - name: Configure Android Manifest
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
 
           p = Path("android/app/src/main/AndroidManifest.xml")
           s = p.read_text()
@@ -42,25 +75,11 @@ jobs:
           permission = '    <uses-permission android:name="android.permission.INTERNET" />'
 
           if 'android.permission.INTERNET' not in s:
-              marker = '<application'
               s = s.replace(
-                  marker,
-                  permission + '\n\n    ' + marker,
+                  '<application',
+                  permission + '\n\n    <application',
                   1
               )
-
-          p.write_text(s)
-          PY2
-
-      # اسم التطبيق الظاهر للمستخدم
-      - name: Set Arabic app name
-        run: |
-          python - <<'PY2'
-          from pathlib import Path
-          import re
-
-          p = Path("android/app/src/main/AndroidManifest.xml")
-          s = p.read_text()
 
           s = re.sub(
               r'android:label="[^"]*"',
@@ -70,9 +89,18 @@ jobs:
           )
 
           p.write_text(s)
-          PY2
+          PY
 
-      # التأكد من وجود صورة الأيقونة
+      # ============================================================
+      # حذف اختبار Flutter الافتراضي
+      # ============================================================
+      - name: Remove default test
+        run: |
+          rm -f test/widget_test.dart
+
+      # ============================================================
+      # التحقق من صورة الأيقونة
+      # ============================================================
       - name: Verify launcher icon source
         run: |
           test -f assets/icon/delalat_shabasha_icon.png
@@ -80,21 +108,23 @@ jobs:
           echo "Launcher icon source:"
           file assets/icon/delalat_shabasha_icon.png
 
-      # إزالة اختبار Flutter الافتراضي
-      - name: Remove default test
-        run: |
-          rm -f test/widget_test.dart
-
+      # ============================================================
       # تثبيت الحزم
+      # ============================================================
       - name: Get dependencies
-        run: flutter pub get
+        run: |
+          flutter pub get
 
-      # توليد جميع أيقونات Android من صورة PNG الجديدة
+      # ============================================================
+      # إنشاء أيقونات Android
+      # ============================================================
       - name: Generate Android launcher icons
         run: |
           dart run flutter_launcher_icons
 
-      # فحص وجود الأيقونات المولدة
+      # ============================================================
+      # فحص الأيقونات
+      # ============================================================
       - name: Verify generated Android icons
         run: |
           echo "===== GENERATED ICON FILES ====="
@@ -110,12 +140,107 @@ jobs:
           grep -n "android:icon\|android:roundIcon" \
             android/app/src/main/AndroidManifest.xml || true
 
-      # تحليل المشروع
-      - name: Analyze
-        run: flutter analyze
+      # ============================================================
+      # إعداد Keystore
+      # ============================================================
+      - name: Setup signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/delalat_shabasha.jks
 
-      # بناء APK
-      - name: Build APK
+          test -s android/app/delalat_shabasha.jks
+
+          cat > android/key.properties <<EOF
+          storePassword=$KEYSTORE_PASSWORD
+          keyPassword=$KEY_PASSWORD
+          keyAlias=delalat_shabasha
+          storeFile=../app/delalat_shabasha.jks
+          EOF
+
+          echo "Signing keystore configured successfully."
+
+      # ============================================================
+      # إعداد توقيع Android
+      # ============================================================
+      - name: Configure Android signing
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path("android/app/build.gradle.kts")
+          s = p.read_text()
+
+          signing_block = r'''
+          import java.util.Properties
+          import java.io.FileInputStream
+
+          val keystorePropertiesFile = rootProject.file("key.properties")
+          val keystoreProperties = Properties()
+
+          if (keystorePropertiesFile.exists()) {
+              keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+          }
+          '''
+
+          if 'keystorePropertiesFile' not in s:
+              s = signing_block + '\n' + s
+
+          signing_config = r'''
+              signingConfigs {
+                  create("release") {
+                      keyAlias = keystoreProperties["keyAlias"] as String
+                      keyPassword = keystoreProperties["keyPassword"] as String
+                      storeFile = file(keystoreProperties["storeFile"] as String)
+                      storePassword = keystoreProperties["storePassword"] as String
+                  }
+              }
+          '''
+
+          if 'create("release")' not in s:
+              s = s.replace(
+                  'android {',
+                  'android {\n' + signing_config,
+                  1
+              )
+
+          s = s.replace(
+              'signingConfig = signingConfigs.getByName("debug")',
+              'signingConfig = signingConfigs.getByName("release")'
+          )
+
+          p.write_text(s)
+          PY
+
+      # ============================================================
+      # التحقق من إعدادات التوقيع
+      # ============================================================
+      - name: Verify signing configuration
+        run: |
+          echo "===== APPLICATION ID ====="
+          grep -n "applicationId" android/app/build.gradle.kts || true
+
+          echo
+          echo "===== SIGNING CONFIG ====="
+          grep -n -A8 -B2 "create(\"release\")" android/app/build.gradle.kts || true
+
+          echo
+          echo "===== KEY PROPERTIES ====="
+          grep -E "^(keyAlias|storeFile)=" android/key.properties
+
+      # ============================================================
+      # تحليل المشروع
+      # ============================================================
+      - name: Analyze
+        run: |
+          flutter analyze
+
+      # ============================================================
+      # بناء APK موقّع
+      # ============================================================
+      - name: Build signed APK
         env:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
@@ -123,9 +248,33 @@ jobs:
             --dart-define=SUPABASE_URL=https://newtahnyvxbydpsbxgew.supabase.co \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
-      # رفع APK كـ Artifact
-      - name: Upload APK
+      # ============================================================
+      # بناء AAB موقّع
+      # ============================================================
+      - name: Build signed AAB
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          flutter build appbundle --release \
+            --dart-define=SUPABASE_URL=https://newtahnyvxbydpsbxgew.supabase.co \
+            --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
+
+      # ============================================================
+      # رفع APK
+      # ============================================================
+      - name: Upload signed APK
         uses: actions/upload-artifact@v4
         with:
-          name: delalat-shabasha-apk
+          name: delalat-shabasha-signed-apk
           path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+
+      # ============================================================
+      # رفع AAB
+      # ============================================================
+      - name: Upload signed AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: delalat-shabasha-signed-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
