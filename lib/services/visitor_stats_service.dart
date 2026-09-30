@@ -73,9 +73,7 @@ class VisitorStatsService {
       'total': results[3],
     };
   }
-}
-
-Future<List<Map<String, dynamic>>> getCurrentMemberList() async {
+  Future<List<Map<String, dynamic>>> getCurrentMemberList() async {
   final response = await _supabase.rpc(
     'get_current_member_list',
   );
@@ -88,3 +86,5 @@ Future<List<Map<String, dynamic>>> getCurrentMemberList() async {
 
   return [];
 }
+}
+
