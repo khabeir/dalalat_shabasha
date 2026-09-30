@@ -58,6 +58,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   List<Map<String, dynamic>> _pendingListings = [];
   List<Map<String, dynamic>> _approvedListings = [];
+  List<Map<String, dynamic>> _archivedListings = [];
   List<Map<String, dynamic>> _activePromotions = [];
 
   List<_ReportGroup> _listingReportGroups = [];
@@ -919,6 +920,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     await Future.wait([
       _loadPendingListings(),
       _loadApprovedListings(reset: true),
+      _loadArchivedListings(),
       _loadActivePromotions(),
       _loadListingReports(),
     ]);
@@ -1089,6 +1091,312 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
+  Future<void> _loadArchivedListings() async {
+    try {
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      final response = await _supabase
+          .from('listings')
+          .select()
+          .or(
+            'status.eq.rejected,and(status.eq.approved,display_expires_at.lt.$now)',
+          )
+          .order(
+            'created_at',
+            ascending: false,
+          )
+          .limit(500);
+
+      final rows = List<Map<String, dynamic>>.from(response);
+
+      await _loadListingMetadata(rows);
+
+      if (!mounted) return;
+
+      setState(() => _archivedListings = rows);
+    } catch (e) {
+      debugPrint('loadArchivedListings error: $e');
+      _dashboardLoadFailed = true;
+    }
+  }
+
+  bool _isExpiredListing(Map<String, dynamic> listing) {
+    if (listing['status'] != 'approved') return false;
+
+    final value = listing['display_expires_at'];
+    if (value == null) return false;
+
+    final expires = DateTime.tryParse(value.toString());
+    if (expires == null) return false;
+
+    return !expires.toUtc().isAfter(DateTime.now().toUtc());
+  }
+
+  Future<void> _deleteArchivedListing(
+    Map<String, dynamic> listing,
+  ) async {
+    final id = listing['id'];
+
+    if (id is! int || _processingListingIds.contains(id)) {
+      return;
+    }
+
+    final isRejected = listing['status'] == 'rejected';
+    final isExpired = _isExpiredListing(listing);
+    final kind = isRejected ? 'المرفوض' : (isExpired ? 'المنتهي' : 'هذا');
+
+    final confirmed = await _confirm(
+      title: 'حذف الإعلان نهائياً',
+      message:
+          'سيتم حذف الإعلان $kind وصوره وبياناته المرتبطة به نهائياً.\n\n'
+          'هذا الإجراء لا يمكن التراجع عنه. متابعة؟',
+      confirmLabel: 'حذف نهائياً',
+    );
+
+    if (!confirmed || !mounted) return;
+
+    setState(() => _processingListingIds.add(id));
+
+    try {
+      final imageResponse = await _supabase
+          .from('listing_images')
+          .select('image_path')
+          .eq('listing_id', id);
+
+      final imagePaths = <String>[];
+
+      for (final row in List<Map<String, dynamic>>.from(imageResponse)) {
+        final path = row['image_path']?.toString().trim() ?? '';
+        if (path.isNotEmpty && !path.startsWith('http')) {
+          imagePaths.add(path);
+        }
+      }
+
+      // Delete storage files first so rejected/expired listings do not
+      // continue consuming storage after their database rows are removed.
+      if (imagePaths.isNotEmpty) {
+        try {
+          await _supabase.storage.from(_bucket).remove(imagePaths);
+        } catch (e) {
+          debugPrint('delete listing storage images error: $e');
+        }
+      }
+
+      // Remove dependent records before deleting the listing itself.
+      await _supabase
+          .from('promoted_listings')
+          .delete()
+          .eq('listing_id', id);
+
+      await _supabase
+          .from('favorites')
+          .delete()
+          .eq('listing_id', id);
+
+      await _supabase
+          .from('reports')
+          .delete()
+          .eq('listing_id', id);
+
+      await _supabase
+          .from('listing_images')
+          .delete()
+          .eq('listing_id', id);
+
+      await _supabase
+          .from('listings')
+          .delete()
+          .eq('id', id);
+
+      if (!mounted) return;
+
+      setState(() {
+        _archivedListings.removeWhere(
+          (item) => item['id'] == id,
+        );
+        _approvedListings.removeWhere(
+          (item) => item['id'] == id,
+        );
+        _pendingListings.removeWhere(
+          (item) => item['id'] == id,
+        );
+      });
+
+      _showSnack('تم حذف الإعلان نهائياً');
+    } catch (e) {
+      debugPrint('delete archived listing error: $e');
+      if (mounted) {
+        _showSnack('تعذر حذف الإعلان. تحقق من صلاحيات قاعدة البيانات.');
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _processingListingIds.remove(id));
+      }
+    }
+  }
+
+  Widget _buildArchivedListingCard(
+    Map<String, dynamic> listing,
+  ) {
+    final rejected = listing['status'] == 'rejected';
+    final expired = _isExpiredListing(listing);
+
+    final statusLabel = rejected
+        ? 'مرفوض'
+        : expired
+            ? 'منتهي'
+            : 'أرشيف';
+
+    final statusColor = rejected
+        ? Colors.red.shade700
+        : AppColors.orange;
+
+    final reason = listing['rejection_reason']?.toString().trim() ?? '';
+
+    final expiry = listing['display_expires_at'];
+
+    Widget? footer;
+
+    if (rejected && reason.isNotEmpty) {
+      footer = Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.red.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          'سبب الرفض: $reason',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Colors.red.shade800,
+          ),
+        ),
+      );
+    } else if (expired && expiry != null) {
+      footer = Container(
+        padding: const EdgeInsets.all(10),
+        decoration: AppDecorations.softCard(),
+        child: Text(
+          'انتهى العرض: ${_formatDate(expiry)}',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: AppColors.ink,
+          ),
+        ),
+      );
+    }
+
+    final actions = <Widget>[
+      _viewButton(listing),
+      FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.red.shade700,
+          minimumSize: const Size(0, 42),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: 10,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(11),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        onPressed: () => _deleteArchivedListing(listing),
+        icon: const Icon(Icons.delete_forever_outlined, size: 18),
+        label: const Text('حذف نهائي'),
+      ),
+    ];
+
+    return _buildListingCard(
+      listing,
+      footer: footer,
+      actions: actions,
+      showAllImages: true,
+    );
+  }
+
+  Widget _buildArchivedListingsTab() {
+    final rejected = _archivedListings
+        .where((listing) => listing['status'] == 'rejected')
+        .toList();
+
+    final expired = _archivedListings
+        .where(_isExpiredListing)
+        .toList();
+
+    return RefreshIndicator(
+      color: AppColors.brand,
+      onRefresh: () => _loadDashboardData(showSpinner: false),
+      child: _archivedListings.isEmpty
+          ? _emptyState(
+              Icons.delete_sweep_outlined,
+              'لا توجد إعلانات مرفوضة أو منتهية',
+            )
+          : ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+              children: [
+                if (rejected.isNotEmpty) ...[
+                  _archiveSectionHeader(
+                    'الإعلانات المرفوضة',
+                    rejected.length,
+                    Colors.red.shade700,
+                    Icons.block_outlined,
+                  ),
+                  ...rejected.map(_buildArchivedListingCard),
+                ],
+                if (expired.isNotEmpty) ...[
+                  _archiveSectionHeader(
+                    'الإعلانات المنتهية',
+                    expired.length,
+                    AppColors.orange,
+                    Icons.timer_off_outlined,
+                  ),
+                  ...expired.map(_buildArchivedListingCard),
+                ],
+              ],
+            ),
+    );
+  }
+
+  Widget _archiveSectionHeader(
+    String title,
+    int count,
+    Color color,
+    IconData icon,
+  ) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: AppDecorations.softCard(),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: AppColors.ink,
+              ),
+            ),
+          ),
+          _badge(
+            '$count',
+            background: color,
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _attachPromotions(
     List<Map<String, dynamic>> listings,
   ) async {
@@ -1181,6 +1489,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             'status',
             'approved',
           );
+
+      final now = DateTime.now().toUtc().toIso8601String();
+
+      request = request.or(
+        'display_expires_at.is.null,display_expires_at.gt.$now',
+      );
 
       if (query.isNotEmpty) {
         request = request.ilike(
@@ -4378,6 +4692,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           _buildPendingListingsTab(),
           _buildReportsTab(),
           _buildApprovedListingsTab(),
+          _buildArchivedListingsTab(),
           _buildPromotionsTab(),
         ],
       );
@@ -4397,7 +4712,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           TextDirection.rtl,
       child:
           DefaultTabController(
-        length: 4,
+        length: 5,
         child: Scaffold(
           backgroundColor:
               AppColors.pageBackground,
@@ -4544,6 +4859,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       const Tab(
                         text:
                             'المعتمدة',
+                      ),
+                      Tab(
+                        text:
+                            _tabLabel(
+                          'الأرشيف',
+                          _archivedListings.length,
+                        ),
                       ),
                       Tab(
                         text:
