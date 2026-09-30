@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
       # ============================================================
       # Checkout
       # ============================================================
@@ -92,14 +93,14 @@ jobs:
           PY
 
       # ============================================================
-      # حذف اختبار Flutter الافتراضي
+      # إزالة اختبار Flutter الافتراضي
       # ============================================================
       - name: Remove default test
         run: |
           rm -f test/widget_test.dart
 
       # ============================================================
-      # التحقق من صورة الأيقونة
+      # التحقق من الأيقونة
       # ============================================================
       - name: Verify launcher icon source
         run: |
@@ -149,6 +150,10 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          test -n "$KEYSTORE_BASE64"
+          test -n "$KEYSTORE_PASSWORD"
+          test -n "$KEY_PASSWORD"
+
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/delalat_shabasha.jks
 
           test -s android/app/delalat_shabasha.jks
@@ -215,7 +220,7 @@ jobs:
           PY
 
       # ============================================================
-      # التحقق من إعدادات التوقيع
+      # التحقق من إعداد التوقيع
       # ============================================================
       - name: Verify signing configuration
         run: |
@@ -223,11 +228,11 @@ jobs:
           grep -n "applicationId" android/app/build.gradle.kts || true
 
           echo
-          echo "===== SIGNING CONFIG ====="
-          grep -n -A8 -B2 "create(\"release\")" android/app/build.gradle.kts || true
+          echo "===== RELEASE SIGNING ====="
+          grep -n -A8 -B2 'create("release")' android/app/build.gradle.kts || true
 
           echo
-          echo "===== KEY PROPERTIES ====="
+          echo "===== KEY ALIAS / STORE FILE ====="
           grep -E "^(keyAlias|storeFile)=" android/key.properties
 
       # ============================================================
@@ -238,13 +243,42 @@ jobs:
           flutter analyze
 
       # ============================================================
+      # تنظيف Flutter قبل البناء
+      # ============================================================
+      - name: Prepare clean release build
+        run: |
+          export CI=true
+          export DART_SUPPRESS_ANALYTICS=true
+
+          flutter clean
+
+          cd android
+          ./gradlew --stop || true
+          cd ..
+
+      # ============================================================
+      # إيقاف عمليات Flutter/Dart القديمة
+      # ============================================================
+      - name: Stop Flutter and Dart watchers
+        run: |
+          pkill -f dart || true
+          pkill -f flutter || true
+          sleep 3
+
+      # ============================================================
       # بناء APK موقّع
       # ============================================================
       - name: Build signed APK
         env:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          PUB_CACHE: /tmp/pub-cache
         run: |
-          flutter build apk --release \
+          export CI=true
+          export DART_SUPPRESS_ANALYTICS=true
+
+          flutter build apk \
+            --release \
+            --no-pub \
             --dart-define=SUPABASE_URL=https://newtahnyvxbydpsbxgew.supabase.co \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
@@ -254,8 +288,14 @@ jobs:
       - name: Build signed AAB
         env:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          PUB_CACHE: /tmp/pub-cache
         run: |
-          flutter build appbundle --release \
+          export CI=true
+          export DART_SUPPRESS_ANALYTICS=true
+
+          flutter build appbundle \
+            --release \
+            --no-pub \
             --dart-define=SUPABASE_URL=https://newtahnyvxbydpsbxgew.supabase.co \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
