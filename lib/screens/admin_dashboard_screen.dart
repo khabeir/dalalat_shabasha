@@ -1240,6 +1240,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   ) {
     final rejected = listing['status'] == 'rejected';
     final expired = _isExpiredListing(listing);
+
     final reason = listing['rejection_reason']?.toString().trim() ?? '';
 
     final expiry = listing['display_expires_at'];
@@ -1279,6 +1280,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     final actions = <Widget>[
       _viewButton(listing),
+      FilledButton.icon(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.brand,
+          minimumSize: const Size(0, 42),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 6,
+            vertical: 10,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(11),
+          ),
+          textStyle: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        onPressed: () => _approve(listing),
+        icon: const Icon(Icons.check_circle_outline, size: 18),
+        label: const Text('موافقة'),
+      ),
       FilledButton.icon(
         style: FilledButton.styleFrom(
           backgroundColor: Colors.red.shade700,
