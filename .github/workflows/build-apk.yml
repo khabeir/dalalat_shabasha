@@ -243,13 +243,10 @@ jobs:
           flutter analyze
 
       # ============================================================
-      # تنظيف Flutter قبل البناء
+      # تنظيف Flutter و Gradle
       # ============================================================
-      - name: Prepare clean release build
+      - name: Clean build
         run: |
-          export CI=true
-          export DART_SUPPRESS_ANALYTICS=true
-
           flutter clean
 
           cd android
@@ -257,13 +254,15 @@ jobs:
           cd ..
 
       # ============================================================
-      # إيقاف عمليات Flutter/Dart القديمة
+      # إعادة إنشاء ملفات Dart بعد flutter clean
       # ============================================================
-      - name: Stop Flutter and Dart watchers
+      - name: Restore dependencies after clean
         run: |
-          pkill -f dart || true
-          pkill -f flutter || true
-          sleep 3
+          flutter pub get
+
+          test -f .dart_tool/package_config.json
+
+          echo "Dart package configuration restored successfully."
 
       # ============================================================
       # بناء APK موقّع
@@ -271,14 +270,12 @@ jobs:
       - name: Build signed APK
         env:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          PUB_CACHE: /tmp/pub-cache
         run: |
           export CI=true
           export DART_SUPPRESS_ANALYTICS=true
 
           flutter build apk \
             --release \
-            --no-pub \
             --dart-define=SUPABASE_URL=https://newtahnyvxbydpsbxgew.supabase.co \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
@@ -288,14 +285,12 @@ jobs:
       - name: Build signed AAB
         env:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
-          PUB_CACHE: /tmp/pub-cache
         run: |
           export CI=true
           export DART_SUPPRESS_ANALYTICS=true
 
           flutter build appbundle \
             --release \
-            --no-pub \
             --dart-define=SUPABASE_URL=https://newtahnyvxbydpsbxgew.supabase.co \
             --dart-define=SUPABASE_ANON_KEY="$SUPABASE_ANON_KEY"
 
