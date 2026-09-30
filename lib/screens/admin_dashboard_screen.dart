@@ -174,10 +174,58 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 label: 'زوار متصلون',
               ),
               const SizedBox(width: 7),
-              item(
-                icon: Icons.people_outline,
-                value: '$_currentOnlineMembers',
-                label: 'أعضاء متصلون',
+              Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: _showCurrentOnlineMembers,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 10,
+                    ),
+                    decoration: AppDecorations.softCard(),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.people_outline,
+                          size: 21,
+                          color: AppColors.brand,
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          '$_currentOnlineMembers',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'أعضاء متصلون',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'اضغط للعرض',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: AppColors.brand,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(width: 7),
               item(
@@ -568,6 +616,207 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       if (mounted) {
         setState(() {});
       }
+    }
+  }
+
+  Future<void> _showCurrentOnlineMembers() async {
+    try {
+      final response = await _supabase.rpc(
+        'get_current_member_list',
+      );
+
+      final members = response is List
+          ? response
+              .map(
+                (item) => Map<String, dynamic>.from(
+                  item as Map,
+                ),
+              )
+              .toList()
+          : <Map<String, dynamic>>[];
+
+      if (!mounted) return;
+
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              backgroundColor:
+                  Theme.of(dialogContext).colorScheme.surface,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(22),
+              ),
+              title: Row(
+                children: [
+                  const Icon(
+                    Icons.people_alt_outlined,
+                    color: AppColors.brand,
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'الأعضاء المتصلون',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  if (members.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.brandSoft,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        '${members.length}',
+                        style: const TextStyle(
+                          color: AppColors.brand,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: members.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(
+                          vertical: 24,
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.person_off_outlined,
+                              size: 46,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 12),
+                            Text(
+                              'لا يوجد أعضاء متصلون حالياً',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          maxHeight: 420,
+                        ),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: members.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1),
+                          itemBuilder: (_, index) {
+                            final member = members[index];
+
+                            final rawName =
+                                member['full_name']?.toString().trim() ?? '';
+
+                            final name = rawName.isNotEmpty
+                                ? rawName
+                                : 'عضو بدون اسم';
+
+                            final phone =
+                                member['phone']?.toString().trim() ?? '';
+
+                            final lastSeen =
+                                member['last_seen_at'];
+
+                            return ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 5,
+                              ),
+                              leading: Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: AppColors.brandSoft,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.person_outline,
+                                  color: AppColors.brand,
+                                ),
+                              ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 9,
+                                    height: 9,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.green,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  if (phone.isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        phone,
+                                        textDirection: TextDirection.ltr,
+                                      ),
+                                    ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'آخر ظهور: ${_timeAgo(lastSeen)}',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('إغلاق'),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      debugPrint(
+        'current online members error: $e',
+      );
+
+      if (!mounted) return;
+
+      _showSnack(
+        'تعذر تحميل الأعضاء المتصلين',
+      );
     }
   }
 

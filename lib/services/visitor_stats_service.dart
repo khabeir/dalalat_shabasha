@@ -74,3 +74,17 @@ class VisitorStatsService {
     };
   }
 }
+
+Future<List<Map<String, dynamic>>> getCurrentMemberList() async {
+  final response = await _supabase.rpc(
+    'get_current_member_list',
+  );
+
+  if (response is List) {
+    return response
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+  }
+
+  return [];
+}
