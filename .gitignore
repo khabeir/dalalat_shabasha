@@ -33,3 +33,5 @@ key.properties
 
 # Generated files
 *.iml
+
+android/keystore/
